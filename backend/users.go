@@ -13,7 +13,7 @@ type User struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string    `gorm:"type:varchar(100);not null" json:"name"`
 	Email       string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"email"`
-	Phone       string    `gorm:"type:varchar(15);not null" json:"phone"`
+	Phone       string    `gorm:"type:varchar(15)" json:"phone"` // Removed not null constraint
 	Gender      string    `gorm:"type:varchar(10)" json:"gender,omitempty"`
 	FirebaseUID string    `gorm:"type:varchar(100);uniqueIndex;not null" json:"-"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -41,7 +41,7 @@ func getUser(uid interface{}) (*User, error) { //
 type CreateUserRequest struct {
 	Name   string `json:"name" binding:"required"`
 	Email  string `json:"email" binding:"required,email"`
-	Phone  string `json:"phone" binding:"required"`
+	Phone  string `json:"phone"` // Removed binding:"required" to allow empty phone for Google sign-in
 	Gender string `json:"gender"`
 }
 

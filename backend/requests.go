@@ -115,7 +115,7 @@ func SendJoinRequest(c *gin.Context) {
 	notificationTitle := "New Join Request"
 	notificationMessage := fmt.Sprintf("%s has requested to join your ride from %s to %s on %s at %s",
 		user.Name, targetRide.Origin, targetRide.Destination, targetRide.Date, targetRide.Time)
-	
+
 	if err := createNotification(rideLeader.FirebaseUID, notificationTitle, notificationMessage, "join_request", uint(rideID)); err != nil {
 		// Log error but don't fail the request since the join request was created successfully
 		fmt.Printf("Failed to create notification for ride leader %s: %v\n", rideLeader.FirebaseUID, err)

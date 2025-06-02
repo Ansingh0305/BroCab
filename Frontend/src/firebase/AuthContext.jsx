@@ -211,10 +211,17 @@ export function AuthProvider({ children }) {
         throw new Error('Name and email are required fields');
       }
 
-      console.log('Sending user data to backend:', cleanedUserData);
+      console.log('Original user data:', userData);
+      console.log('Cleaned user data being sent to backend:', cleanedUserData);
+      console.log('User UID:', user.uid);
+      console.log('User email verified:', user.emailVerified);
 
       // Get the ID token
       const token = await user.getIdToken();
+      console.log('Token obtained, length:', token.length);
+
+      const requestBody = JSON.stringify(cleanedUserData);
+      console.log('Request body being sent:', requestBody);
 
       const response = await fetch(`${API_BASE_URL}/user`, {
         method: 'POST',
@@ -222,13 +229,29 @@ export function AuthProvider({ children }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(cleanedUserData)
+        body: requestBody
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        let errorData;
+        const responseText = await response.text();
+        console.log('Raw error response text:', responseText);
+        
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse error response as JSON:', parseError);
+          errorData = { error: responseText || 'Unknown error' };
+        }
+        
         console.error('Backend error response:', errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        console.error('Response status:', response.status);
+        console.error('Response statusText:', response.statusText);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
@@ -236,6 +259,7 @@ export function AuthProvider({ children }) {
       return result;
     } catch (error) {
       console.error('Error creating user profile:', error);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   };
