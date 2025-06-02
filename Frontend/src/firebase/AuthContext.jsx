@@ -2,11 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { auth } from "./config";
+import { auth, googleProvider } from "./config";
 
 // Create authentication context
 const AuthContext = createContext();
@@ -25,6 +26,9 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [idToken, setIdToken] = useState(null);
+
+  // Get the API base URL from environment variable
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://www.brocab.onrender.com";
 
   // Sign up function
   const signup = async (email, password, displayName) => {
@@ -53,6 +57,66 @@ export function AuthProvider({ children }) {
     try {
       return await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
+      throw error;
+    }
+  };
+
+  // Google Sign-In function
+  const signInWithGoogle = async () => {
+    try {
+      console.log("Attempting Google sign-in...");
+      
+      // Check if running on an unauthorized domain and provide clear instructions
+      const currentDomain = window.location.hostname;
+      const authorizedDomains = ['localhost', '127.0.0.1', 'brocab-1c545.firebaseapp.com']; // Add your authorized domains here
+      
+      if (!authorizedDomains.includes(currentDomain)) {
+        console.warn(`Current domain (${currentDomain}) is not authorized in Firebase. Authentication might fail.`);
+        console.warn(`Please add ${currentDomain} to Firebase Console -> Authentication -> Settings -> Authorized domains`);
+      }
+      
+      // Add more specific settings for better browser compatibility
+      const auth_settings = {
+        // This helps prevent the popup from being blocked
+        popup: true,
+        // Add a longer timeout for network issues
+        timeout: 30000
+      };
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Google sign-in successful:", result);
+      
+      // Log useful information for debugging without exposing sensitive data
+      console.log("Successfully signed in user:", {
+        displayName: result.user.displayName,
+        email: result.user.email,
+        uid: result.user.uid,
+        isNewUser: result._tokenResponse?.isNewUser
+      });
+      
+      return result;
+    } catch (error) {
+      console.error("Google sign-in error code:", error.code);
+      console.error("Google sign-in error message:", error.message);
+      
+      // Additional handling for auth/unauthorized-domain error
+      if (error.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        console.error(`Domain ${currentDomain} is not authorized in Firebase Console.`);
+        console.error(`Please add ${currentDomain} to Firebase Console -> Authentication -> Settings -> Authorized domains`);
+        
+        // Rethrow with more specific message
+        const enhancedError = new Error(`Domain ${currentDomain} is not authorized for Firebase Authentication. Add it to Firebase Console -> Authentication -> Settings -> Authorized domains.`);
+        enhancedError.code = error.code;
+        throw enhancedError;
+      }
+      
+      // Log additional error information
+      if (error.customData) {
+        console.error("Additional error data:", error.customData);
+      }
+      
+      // Rethrow for handling in the UI layer
       throw error;
     }
   };
@@ -128,62 +192,86 @@ export function AuthProvider({ children }) {
   // Create user profile in backend
   const createUserProfile = async (userData, userCredential = null) => {
     try {
-      // If userCredential is provided, get token directly from it
-      let token;
-      if (userCredential && userCredential.user) {
-        token = await userCredential.user.getIdToken();
-      } else {
-        token = await getIdToken();
+      // If userCredential is provided, use it directly. Otherwise, use currentUser
+      const user = userCredential?.user || currentUser;
+      
+      if (!user) {
+        throw new Error('No authenticated user found');
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-      };
+      // Filter out undefined and empty string values from userData
+      const cleanedUserData = Object.fromEntries(
+        Object.entries(userData).filter(([key, value]) => 
+          value !== undefined && value !== null && value !== ''
+        )
+      );
 
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-        console.log(
-          "AuthContext: Adding bearer token to request:",
-          token.substring(0, 20) + "..."
-        );
-      } else {
-        throw new Error("No authentication token available");
+      // Ensure required fields are present
+      if (!cleanedUserData.name || !cleanedUserData.email) {
+        throw new Error('Name and email are required fields');
       }
 
-      console.log("AuthContext: Making API call to create user profile");
+      console.log('Original user data:', userData);
+      console.log('Cleaned user data being sent to backend:', cleanedUserData);
+      console.log('User UID:', user.uid);
+      console.log('User email verified:', user.emailVerified);
 
-      const response = await fetch("https://brocab.onrender.com/user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(userData),
+      // Get the ID token
+      const token = await user.getIdToken();
+      console.log('Token obtained, length:', token.length);
+
+      const requestBody = JSON.stringify(cleanedUserData);
+      console.log('Request body being sent:', requestBody);
+
+      const response = await fetch(`${API_BASE_URL}/user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: requestBody
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: "Network error" }));
-        throw new Error(
-          error.error || `HTTP error! status: ${response.status}`
-        );
+        let errorData;
+        const responseText = await response.text();
+        console.log('Raw error response text:', responseText);
+        
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse error response as JSON:', parseError);
+          errorData = { error: responseText || 'Unknown error' };
+        }
+        
+        console.error('Backend error response:', errorData);
+        console.error('Response status:', response.status);
+        console.error('Response statusText:', response.statusText);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('User profile created successfully:', result);
+      return result;
     } catch (error) {
-      console.error("Error creating user profile:", error);
+      console.error('Error creating user profile:', error);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   };
 
   // Fetch user details and set user name
   const fetchUserDetails = async () => {
-    
-
     let token = await getIdToken();
     console.log(typeof(token))
    
     if (token) {
       try {
-        const response = await fetch("https://brocab.onrender.com/user", {
+        const response = await fetch(`${API_BASE_URL}/user`, {
           method: "GET",
           headers: {
             // "Content-Type": "application/json", // Recommended for JSON APIs
@@ -255,6 +343,7 @@ export function AuthProvider({ children }) {
     idToken,
     signup,
     login,
+    signInWithGoogle,
     logout,
     getIdToken,
     apiCall,

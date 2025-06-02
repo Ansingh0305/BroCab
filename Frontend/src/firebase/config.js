@@ -1,16 +1,16 @@
 // Firebase configuration and initialization
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-// Your web app's Firebase configuration - using environment variables
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyAcanAdO4OKjS1pxn-SsyZ9pEE6AvkX6tc",
+  authDomain: "brocab-1c545.firebaseapp.com",
+  projectId: "brocab-1c545",
+  storageBucket: "brocab-1c545.firebasestorage.app",
+  messagingSenderId: "356073188733",
+  appId: "1:356073188733:web:bb28d65ad93102eedd3014",
+  measurementId: "G-TYGDGMPTYQ"
 };
 
 // Initialize Firebase
@@ -20,6 +20,20 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage(); // Set language to device default
 
-// Export auth instance and app
-export { auth };
+// Initialize Google Auth Provider with enhanced configuration
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+  login_hint: 'user@example.com',
+  // Adding these parameters to improve sign-in success rate
+  access_type: 'offline', // Get a refresh token
+  include_granted_scopes: 'true'
+});
+
+// Add additional scopes if needed
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+
+// Export auth instance, providers and app
+export { auth, googleProvider };
 export default app;

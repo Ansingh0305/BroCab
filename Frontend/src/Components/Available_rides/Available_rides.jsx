@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './Available_rides.css';
 import Navbar from '../Navbar/Navbar';
 import { useAuth } from '../../firebase/AuthContext';
+import { apiCall } from '../../utils/api';
 
 const BACKGROUND_IMAGE = '/backgroundimg.png';
 
@@ -19,7 +20,10 @@ const Available_rides = () => {
   const navigate = useNavigate();
   
   // Use the auth context - get all needed functions at component level
-  const { apiCall, currentUser, getIdToken } = useAuth();
+  const { currentUser, getIdToken } = useAuth();
+
+  // Get API base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
 
   // Get initial search parameters from URL
   const urlParams = new URLSearchParams(location.search);
@@ -110,7 +114,7 @@ const Available_rides = () => {
   const fetchRideDetails = async (rideId) => {
     try {
       setLoadingDetails(true);
-      const response = await apiCall(`https://brocab.onrender.com/ride/${rideId}/participants`);
+      const response = await apiCall(`${API_BASE_URL}/ride/${rideId}/participants`);
       const data = await response.json();
       setRideDetails(data);
     } catch (error) {
@@ -162,7 +166,7 @@ const Available_rides = () => {
         date: searchForm.date.trim()
       });
       
-      const apiUrl = `https://brocab.onrender.com/ride/filter?${apiParams.toString()}`;
+      const apiUrl = `${API_BASE_URL}/ride/filter?${apiParams.toString()}`;
       console.log('Making API call to:', apiUrl);
       
       // Use the auth context's apiCall method
@@ -320,7 +324,7 @@ const Available_rides = () => {
       }
 
       // Make POST request to join the ride with Bearer token
-      const response = await fetch(`https://brocab.onrender.com/ride/${rideId}/join`, {
+      const response = await fetch(`${API_BASE_URL}/ride/${rideId}/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

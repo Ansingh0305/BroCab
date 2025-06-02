@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../firebase/AuthContext';
 import Navbar from '../Navbar/Navbar';
-import './MyBookedRides.css'; // Use the new CSS file
+import './MyBookedRides.css';
 
 const BACKGROUND_IMAGE = '/backgroundimg.png';
 
@@ -10,6 +10,9 @@ const MyBookedRides = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { currentUser, getIdToken } = useAuth();
+
+  // Get API base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
 
   useEffect(() => {
     if (currentUser) {
@@ -28,7 +31,7 @@ const MyBookedRides = () => {
         throw new Error('No authentication token available');
       }
 
-      const response = await fetch('https://brocab.onrender.com/user/rides/joined', {
+      const response = await fetch(`${API_BASE_URL}/user/rides/joined`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`

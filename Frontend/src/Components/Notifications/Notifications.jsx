@@ -9,56 +9,43 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [markingAsRead, setMarkingAsRead] = useState(new Set());
-  const [lastNotificationCount, setLastNotificationCount] = useState(0);
   const { currentUser, getIdToken } = useAuth();
+
+  // FORCE CLEAR BADGE WHEN COMPONENT MOUNTS
+  useEffect(() => {
+    console.log('Notifications component mounted - clearing badge');
+    
+    // Immediately dispatch events to clear badge
+    window.dispatchEvent(new CustomEvent('notificationsViewed'));
+    window.dispatchEvent(new CustomEvent('notificationCleared'));
+    
+    // Set localStorage flag
+    localStorage.setItem('notificationPageVisited', Date.now().toString());
+    localStorage.setItem('notificationBadgeCleared', 'true');
+    
+    // Cleanup when component unmounts
+    return () => {
+      console.log('Notifications component unmounting');
+      window.dispatchEvent(new CustomEvent('notificationCleared'));
+    };
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
       fetchNotifications();
-      requestNotificationPermission();
-      
-      // More frequent refresh for real-time notifications
-      const interval = setInterval(fetchNotifications, 5000); // Every 5 seconds
-      return () => clearInterval(interval);
     }
   }, [currentUser]);
 
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission();
+  // Mark all notifications as read when component mounts (user views notifications)
+  useEffect(() => {
+    if (notifications.length > 0) {
+      markAllAsReadOnView();
     }
-  };
-
-  const showBrowserNotification = (notification) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const browserNotification = new Notification(notification.title, {
-        body: notification.message,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        tag: `notification-${notification.notification_id}`,
-        requireInteraction: true
-      });
-
-      browserNotification.onclick = () => {
-        window.focus();
-        handleNotificationClick(notification);
-        browserNotification.close();
-      };
-
-      // Auto close after 10 seconds
-      setTimeout(() => {
-        browserNotification.close();
-      }, 10000);
-    }
-  };
+  }, [notifications]);
 
   const fetchNotifications = async () => {
     try {
-      if (loading) {
-        setLoading(true);
-      }
+      setLoading(true);
       setError(null);
       
       const token = await getIdToken();
@@ -92,18 +79,7 @@ const Notifications = () => {
         newNotifications = data;
       }
 
-      // Check for new notifications and show browser notifications
-      if (lastNotificationCount > 0 && newNotifications.length > lastNotificationCount) {
-        const latestNotifications = newNotifications.slice(0, newNotifications.length - lastNotificationCount);
-        latestNotifications.forEach(notification => {
-          if (!notification.read) {
-            showBrowserNotification(notification);
-          }
-        });
-      }
-
       setNotifications(newNotifications);
-      setLastNotificationCount(newNotifications.length);
       
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -118,72 +94,17 @@ const Notifications = () => {
     }
   };
 
-  const markAsRead = async (notificationId) => {
-    if (markingAsRead.has(notificationId)) return;
-
-    try {
-      setMarkingAsRead(prev => new Set(prev).add(notificationId));
-      
-      const token = await getIdToken();
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      const response = await fetch(`https://brocab.onrender.com/notification/${notificationId}/read`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to mark notification as read: ${response.status}`);
-      }
-
-      // Update local state
-      setNotifications(prev => 
-        prev.map(notification => 
-          notification.notification_id === notificationId 
-            ? { ...notification, read: true }
-            : notification
-        )
-      );
-
-      // Dispatch custom event to update navbar count
-      window.dispatchEvent(new CustomEvent('notificationRead'));
-      
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      alert('Failed to mark notification as read');
-    } finally {
-      setMarkingAsRead(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(notificationId);
-        return newSet;
-      });
-    }
-  };
-
-  const markAllAsRead = async () => {
-    const unreadNotifications = notifications.filter(n => !n.read);
-    
-    if (unreadNotifications.length === 0) {
-      alert('No unread notifications to mark');
-      return;
-    }
-
-    if (!window.confirm(`Mark all ${unreadNotifications.length} unread notifications as read?`)) {
-      return;
-    }
-
+  // Mark all notifications as read when user views the notifications page
+  const markAllAsReadOnView = async () => {
     try {
       const token = await getIdToken();
+      if (!token) return;
+
+      const unreadNotifications = notifications.filter(n => !n.read);
       
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
+      if (unreadNotifications.length === 0) return;
+
+      console.log('Marking all notifications as read...');
 
       // Mark all unread notifications as read
       const promises = unreadNotifications.map(notification =>
@@ -198,19 +119,21 @@ const Notifications = () => {
 
       await Promise.all(promises);
 
-      // Update local state
+      // Update local state to mark all as read
       setNotifications(prev => 
         prev.map(notification => ({ ...notification, read: true }))
       );
 
-      // Dispatch custom event to update navbar count
-      window.dispatchEvent(new CustomEvent('notificationRead'));
+      // Dispatch events to clear navbar count
+      window.dispatchEvent(new CustomEvent('notificationsViewed'));
+      window.dispatchEvent(new CustomEvent('notificationCleared'));
       
-      alert('All notifications marked as read!');
+      // Set localStorage flags
+      localStorage.setItem('notificationBadgeCleared', 'true');
+      localStorage.setItem('notificationPageVisited', Date.now().toString());
       
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      alert('Failed to mark all notifications as read');
+      console.error('Error marking notifications as read:', error);
     }
   };
 
@@ -255,35 +178,16 @@ const Notifications = () => {
   };
 
   const handleNotificationClick = (notification) => {
-    // Mark as read if unread
-    if (!notification.read) {
-      markAsRead(notification.notification_id);
-    }
-
     // Navigate based on notification type
     const title = notification.title?.toLowerCase() || '';
     if (title.includes('join request') || title.includes('wants to join')) {
-      // Navigate to My Rides to manage requests
       window.location.href = '/my-rides';
     } else if (title.includes('accepted') || title.includes('approved')) {
-      // Navigate to My Booked Rides
       window.location.href = '/my-booked-rides';
     } else if (title.includes('rejected')) {
-      // Navigate to Requested rides
       window.location.href = '/requested';
     }
   };
-
-  // Safe filtering with null check
-  const filteredNotifications = (notifications || []).filter(notification => {
-    if (filter === 'unread') return !notification.read;
-    if (filter === 'read') return notification.read;
-    return true;
-  });
-
-  // Safe count calculation
-  const unreadCount = (notifications || []).filter(n => !n.read).length;
-  const totalCount = (notifications || []).length;
 
   if (!currentUser) {
     return (
@@ -302,7 +206,7 @@ const Notifications = () => {
     );
   }
 
-  if (loading && notifications.length === 0) {
+  if (loading) {
     return (
       <div className="bcNotifications-container" style={{ backgroundImage: `url(${BACKGROUND_IMAGE})` }}>
         <Navbar />
@@ -345,67 +249,19 @@ const Notifications = () => {
           </p>
         </div>
 
-        <div className="bcNotifications-controls">
-          <div className="bcNotifications-filters">
-            <button 
-              className={`bcNotifications-filter-btn ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              All ({totalCount})
-            </button>
-            <button 
-              className={`bcNotifications-filter-btn ${filter === 'unread' ? 'active' : ''}`}
-              onClick={() => setFilter('unread')}
-            >
-              Unread ({unreadCount})
-            </button>
-            <button 
-              className={`bcNotifications-filter-btn ${filter === 'read' ? 'active' : ''}`}
-              onClick={() => setFilter('read')}
-            >
-              Read ({totalCount - unreadCount})
-            </button>
-          </div>
-          
-          {unreadCount > 0 && (
-            <button 
-              className="bcNotifications-mark-all-btn"
-              onClick={markAllAsRead}
-            >
-              Mark All as Read
-            </button>
-          )}
-        </div>
-
         <div className="bcNotifications-content-wrapper">
-          {filteredNotifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="bcNotifications-empty">
-              <div className="bcNotifications-empty-icon">
-                {filter === 'unread' ? '📭' : filter === 'read' ? '📬' : '📪'}
-              </div>
-              <h3>
-                {filter === 'unread' 
-                  ? 'No unread notifications' 
-                  : filter === 'read' 
-                    ? 'No read notifications'
-                    : 'No notifications yet'
-                }
-              </h3>
-              <p>
-                {filter === 'unread' 
-                  ? 'All caught up! You have no unread notifications.' 
-                  : filter === 'read'
-                    ? 'No notifications have been read yet.'
-                    : 'You\'ll see your ride updates and alerts here.'
-                }
-              </p>
+              <div className="bcNotifications-empty-icon">📪</div>
+              <h3>No notifications yet</h3>
+              <p>You'll see your ride updates and alerts here.</p>
             </div>
           ) : (
             <div className="bcNotifications-list">
-              {filteredNotifications.map((notification, index) => (
+              {notifications.map((notification, index) => (
                 <div 
                   key={`notification-${notification.notification_id}-${index}`} 
-                  className={`bcNotifications-card ${!notification.read ? 'unread' : 'read'}`}
+                  className="bcNotifications-card"
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="bcNotifications-card-content">
@@ -422,9 +278,6 @@ const Notifications = () => {
                           <span className="bcNotifications-time">
                             {formatTime(notification.timestamp)}
                           </span>
-                          {!notification.read && (
-                            <div className="bcNotifications-unread-dot"></div>
-                          )}
                         </div>
                       </div>
                       
@@ -432,19 +285,6 @@ const Notifications = () => {
                         {notification.message}
                       </p>
                     </div>
-                    
-                    {!notification.read && (
-                      <button 
-                        className="bcNotifications-mark-read-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markAsRead(notification.notification_id);
-                        }}
-                        disabled={markingAsRead.has(notification.notification_id)}
-                      >
-                        {markingAsRead.has(notification.notification_id) ? '...' : '✓'}
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}

@@ -715,7 +715,19 @@
   border-color: rgba(255, 255, 255, 0.3);
   border-top-color: white;
   margin-bottom: 20px;
+}.bcRides-book-btn.blocked,
+.bcRides-modal-request-btn.blocked {
+  background: #6b7280 !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
 }
+
+.bcRides-book-btn:disabled,
+.bcRides-modal-request-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 
 /* Responsive */
 @media (max-width: 768px) {
