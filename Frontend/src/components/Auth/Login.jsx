@@ -73,8 +73,8 @@ const Login = ({ onSwitchToSignup, onClose }) => {
         const userData = {
           name: result.user.displayName || result.user.email.split('@')[0],
           email: result.user.email,
-          phone: result.user.phoneNumber || '', // Google might provide phone in some cases
-          gender: undefined
+          phone: result.user.phoneNumber || '' // Google might provide phone in some cases
+          // Don't include gender field if not provided - let backend handle defaults
         };
 
         console.log("Creating/updating user profile for Google user:", userData.name);
@@ -91,41 +91,45 @@ const Login = ({ onSwitchToSignup, onClose }) => {
       console.error('Google sign-in error in component:', error);
       
       // Enhanced error handling for Google sign-in
-      switch (error.code) {
-        case 'auth/popup-closed-by-user':
-          setErrors({ general: 'Sign-in was cancelled. Please try again.' });
-          break;
-        case 'auth/popup-blocked':
-          setErrors({ 
-            general: 'Popup was blocked by your browser. Please enable popups for this site and try again.' 
-          });
-          break;
-        case 'auth/cancelled-popup-request':
-          setErrors({ general: 'Another sign-in process is already in progress.' });
-          break;
-        case 'auth/network-request-failed':
-          setErrors({ 
-            general: 'Network error. Please check your internet connection and try again.' 
-          });
-          break;
-        case 'auth/user-disabled':
-          setErrors({ general: 'This account has been disabled. Please contact support.' });
-          break;
-        case 'auth/account-exists-with-different-credential':
-          setErrors({ 
-            general: 'An account already exists with the same email but different sign-in credentials.' 
-          });
-          break;
-        case 'auth/operation-not-allowed':
-          setErrors({ 
-            general: 'Google sign-in is not enabled for this application. Please contact support.' 
-          });
-          break;
-        case 'auth/timeout':
-          setErrors({ general: 'Sign-in process timed out. Please try again.' });
-          break;
-        default:
-          setErrors({ general: `Google sign-in failed: ${error.message}` });
+      if (error.message && error.message.includes('Invalid request data')) {
+        setErrors({ general: 'Account setup failed. Please try signing up manually or contact support.' });
+      } else {
+        switch (error.code) {
+          case 'auth/popup-closed-by-user':
+            setErrors({ general: 'Sign-in was cancelled. Please try again.' });
+            break;
+          case 'auth/popup-blocked':
+            setErrors({ 
+              general: 'Popup was blocked by your browser. Please enable popups for this site and try again.' 
+            });
+            break;
+          case 'auth/cancelled-popup-request':
+            setErrors({ general: 'Another sign-in process is already in progress.' });
+            break;
+          case 'auth/network-request-failed':
+            setErrors({ 
+              general: 'Network error. Please check your internet connection and try again.' 
+            });
+            break;
+          case 'auth/user-disabled':
+            setErrors({ general: 'This account has been disabled. Please contact support.' });
+            break;
+          case 'auth/account-exists-with-different-credential':
+            setErrors({ 
+              general: 'An account already exists with the same email but different sign-in credentials.' 
+            });
+            break;
+          case 'auth/operation-not-allowed':
+            setErrors({ 
+              general: 'Google sign-in is not enabled for this application. Please contact support.' 
+            });
+            break;
+          case 'auth/timeout':
+            setErrors({ general: 'Sign-in process timed out. Please try again.' });
+            break;
+          default:
+            setErrors({ general: `Google sign-in failed: ${error.message}` });
+        }
       }
     } finally {
       setLoading(false);

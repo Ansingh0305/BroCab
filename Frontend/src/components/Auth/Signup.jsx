@@ -79,13 +79,17 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
       // Create Firebase user
       const userCredential = await signup(formData.email, formData.password, formData.name);
       
-      // Create user profile in backend
+      // Create user profile in backend - only include fields with values
       const userData = {
         name: formData.name,
         email: formData.email,
-        phone: formData.phone,
-        gender: formData.gender || undefined
+        phone: formData.phone
       };
+
+      // Only include gender if it's actually selected
+      if (formData.gender && formData.gender.trim() !== '') {
+        userData.gender = formData.gender;
+      }
 
       await createUserProfile(userData);
       onClose(); // Close modal on successful signup
@@ -123,8 +127,8 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
         const userData = {
           name: result.user.displayName || result.user.email.split('@')[0],
           email: result.user.email,
-          phone: '', // Google doesn't provide phone by default
-          gender: undefined
+          phone: result.user.phoneNumber || '' // Google doesn't provide phone by default
+          // Don't include gender field if not provided - let backend handle defaults
         };
 
         // Try to create user profile (it will fail silently if user already exists)
@@ -139,15 +143,19 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
       console.error('Google sign-in error:', error);
       
       // Handle different Google auth errors
-      switch (error.code) {
-        case 'auth/popup-closed-by-user':
-          setErrors({ general: 'Sign-in was cancelled' });
-          break;
-        case 'auth/popup-blocked':
-          setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
-          break;
-        default:
-          setErrors({ general: 'Google sign-in failed. Please try again.' });
+      if (error.message && error.message.includes('Invalid request data')) {
+        setErrors({ general: 'Account setup failed. Please try signing up manually or contact support.' });
+      } else {
+        switch (error.code) {
+          case 'auth/popup-closed-by-user':
+            setErrors({ general: 'Sign-in was cancelled' });
+            break;
+          case 'auth/popup-blocked':
+            setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
+            break;
+          default:
+            setErrors({ general: 'Google sign-in failed. Please try again.' });
+        }
       }
     } finally {
       setLoading(false);

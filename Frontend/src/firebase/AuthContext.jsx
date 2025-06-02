@@ -199,6 +199,20 @@ export function AuthProvider({ children }) {
         throw new Error('No authenticated user found');
       }
 
+      // Filter out undefined and empty string values from userData
+      const cleanedUserData = Object.fromEntries(
+        Object.entries(userData).filter(([key, value]) => 
+          value !== undefined && value !== null && value !== ''
+        )
+      );
+
+      // Ensure required fields are present
+      if (!cleanedUserData.name || !cleanedUserData.email) {
+        throw new Error('Name and email are required fields');
+      }
+
+      console.log('Sending user data to backend:', cleanedUserData);
+
       // Get the ID token
       const token = await user.getIdToken();
 
@@ -208,11 +222,12 @@ export function AuthProvider({ children }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(userData)
+        body: JSON.stringify(cleanedUserData)
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Backend error response:', errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
