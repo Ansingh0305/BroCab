@@ -9,10 +9,26 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentUser, getIdToken, apiCall } = useAuth();
-  
-  // Get API base URL from environment
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
+  const { currentUser, getIdToken } = useAuth();
+
+  // FORCE CLEAR BADGE WHEN COMPONENT MOUNTS
+  useEffect(() => {
+    console.log('Notifications component mounted - clearing badge');
+    
+    // Immediately dispatch events to clear badge
+    window.dispatchEvent(new CustomEvent('notificationsViewed'));
+    window.dispatchEvent(new CustomEvent('notificationCleared'));
+    
+    // Set localStorage flag
+    localStorage.setItem('notificationPageVisited', Date.now().toString());
+    localStorage.setItem('notificationBadgeCleared', 'true');
+    
+    // Cleanup when component unmounts
+    return () => {
+      console.log('Notifications component unmounting');
+      window.dispatchEvent(new CustomEvent('notificationCleared'));
+    };
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -32,10 +48,26 @@ const Notifications = () => {
       setLoading(true);
       setError(null);
       
-      // Use the apiCall method which automatically adds the Authorization header with token
-      const response = await apiCall(`${API_BASE_URL}/user/notifications`, {
-        method: 'GET'
+      const token = await getIdToken();
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      const response = await fetch('https://brocab.onrender.com/user/notifications', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please login again.');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       console.log('Notifications API Response:', data);
@@ -72,10 +104,16 @@ const Notifications = () => {
       
       if (unreadNotifications.length === 0) return;
 
-      // Mark all unread notifications as read using apiCall to ensure token is included
+      console.log('Marking all notifications as read...');
+
+      // Mark all unread notifications as read
       const promises = unreadNotifications.map(notification =>
-        apiCall(`${API_BASE_URL}/notification/${notification.notification_id}/read`, {
-          method: 'POST'
+        fetch(`https://brocab.onrender.com/notification/${notification.notification_id}/read`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
         })
       );
 
@@ -86,8 +124,13 @@ const Notifications = () => {
         prev.map(notification => ({ ...notification, read: true }))
       );
 
-      // Dispatch event to clear navbar count
+      // Dispatch events to clear navbar count
       window.dispatchEvent(new CustomEvent('notificationsViewed'));
+      window.dispatchEvent(new CustomEvent('notificationCleared'));
+      
+      // Set localStorage flags
+      localStorage.setItem('notificationBadgeCleared', 'true');
+      localStorage.setItem('notificationPageVisited', Date.now().toString());
       
     } catch (error) {
       console.error('Error marking notifications as read:', error);
