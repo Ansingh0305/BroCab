@@ -20,11 +20,19 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 auth.useDeviceLanguage(); // Set language to device default
 
-// Initialize Google Auth Provider
+// Initialize Google Auth Provider with enhanced configuration
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  login_hint: 'user@example.com',
+  // Adding these parameters to improve sign-in success rate
+  access_type: 'offline', // Get a refresh token
+  include_granted_scopes: 'true'
 });
+
+// Add additional scopes if needed
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 
 // Export auth instance, providers and app
 export { auth, googleProvider };

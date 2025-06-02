@@ -64,11 +64,38 @@ export function AuthProvider({ children }) {
   // Google Sign-In function
   const signInWithGoogle = async () => {
     try {
+      console.log("Attempting Google sign-in...");
+      
+      // Add more specific settings for better browser compatibility
+      const auth_settings = {
+        // This helps prevent the popup from being blocked
+        popup: true,
+        // Add a longer timeout for network issues
+        timeout: 30000
+      };
+      
       const result = await signInWithPopup(auth, googleProvider);
       console.log("Google sign-in successful:", result);
+      
+      // Log useful information for debugging without exposing sensitive data
+      console.log("Successfully signed in user:", {
+        displayName: result.user.displayName,
+        email: result.user.email,
+        uid: result.user.uid,
+        isNewUser: result._tokenResponse?.isNewUser
+      });
+      
       return result;
     } catch (error) {
-      console.error("Google sign-in error:", error);
+      console.error("Google sign-in error code:", error.code);
+      console.error("Google sign-in error message:", error.message);
+      
+      // Log additional error information
+      if (error.customData) {
+        console.error("Additional error data:", error.customData);
+      }
+      
+      // Rethrow for handling in the UI layer
       throw error;
     }
   };

@@ -64,38 +64,68 @@ const Login = ({ onSwitchToSignup, onClose }) => {
     setErrors({});
 
     try {
+      console.log("Starting Google sign-in process...");
       const result = await signInWithGoogle();
+      console.log("Google sign-in successful in component");
       
       // For Google sign-in, check if user profile exists, if not create one
       try {
         const userData = {
           name: result.user.displayName || result.user.email.split('@')[0],
           email: result.user.email,
-          phone: '', // Google doesn't provide phone by default
+          phone: result.user.phoneNumber || '', // Google might provide phone in some cases
           gender: undefined
         };
 
+        console.log("Creating/updating user profile for Google user:", userData.name);
         // Try to create user profile (it will fail silently if user already exists)
         await createUserProfile(userData, result);
+        console.log("User profile operation completed");
       } catch (profileError) {
         // User profile might already exist, that's okay
-        console.log('User profile creation skipped (might already exist):', profileError);
+        console.log('User profile creation skipped:', profileError.message);
       }
       
       onClose(); // Close modal on successful login
     } catch (error) {
-      console.error('Google sign-in error:', error);
+      console.error('Google sign-in error in component:', error);
       
-      // Handle different Google auth errors
+      // Enhanced error handling for Google sign-in
       switch (error.code) {
         case 'auth/popup-closed-by-user':
-          setErrors({ general: 'Sign-in was cancelled' });
+          setErrors({ general: 'Sign-in was cancelled. Please try again.' });
           break;
         case 'auth/popup-blocked':
-          setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
+          setErrors({ 
+            general: 'Popup was blocked by your browser. Please enable popups for this site and try again.' 
+          });
+          break;
+        case 'auth/cancelled-popup-request':
+          setErrors({ general: 'Another sign-in process is already in progress.' });
+          break;
+        case 'auth/network-request-failed':
+          setErrors({ 
+            general: 'Network error. Please check your internet connection and try again.' 
+          });
+          break;
+        case 'auth/user-disabled':
+          setErrors({ general: 'This account has been disabled. Please contact support.' });
+          break;
+        case 'auth/account-exists-with-different-credential':
+          setErrors({ 
+            general: 'An account already exists with the same email but different sign-in credentials.' 
+          });
+          break;
+        case 'auth/operation-not-allowed':
+          setErrors({ 
+            general: 'Google sign-in is not enabled for this application. Please contact support.' 
+          });
+          break;
+        case 'auth/timeout':
+          setErrors({ general: 'Sign-in process timed out. Please try again.' });
           break;
         default:
-          setErrors({ general: 'Google sign-in failed. Please try again.' });
+          setErrors({ general: `Google sign-in failed: ${error.message}` });
       }
     } finally {
       setLoading(false);
