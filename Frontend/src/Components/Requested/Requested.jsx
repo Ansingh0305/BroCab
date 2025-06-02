@@ -11,6 +11,9 @@ const Requested = () => {
   const [error, setError] = useState(null);
   const { apiCall, currentUser, getIdToken } = useAuth();
 
+  // Get API base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
+
   useEffect(() => {
     if (currentUser) {
       fetchRequestedRides();
@@ -30,7 +33,7 @@ const Requested = () => {
       }
 
       // Make API call with proper headers including Bearer token
-      const response = await fetch('https://brocab.onrender.com/user/requests', {
+      const response = await fetch(`${API_BASE_URL}/user/requests`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -79,7 +82,7 @@ const Requested = () => {
         throw new Error('No authentication token available');
       }
 
-      const cancelUrl = `https://brocab.onrender.com/ride/${rideId}/cancel-request`;
+      const cancelUrl = `${API_BASE_URL}/ride/${rideId}/cancel-request`;
       console.log('Cancel request URL:', cancelUrl);
 
       const response = await fetch(cancelUrl, {

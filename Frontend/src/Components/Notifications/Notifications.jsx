@@ -35,7 +35,7 @@ const Notifications = () => {
         throw new Error('No authentication token available');
       }
 
-      const response = await fetch('https://brocab.onrender.com/user/notifications', {
+      const response = await fetch('https://www.brocab.onrender.com/user/notifications', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ const Notifications = () => {
 
       // Mark all unread notifications as read
       const promises = unreadNotifications.map(notification =>
-        fetch(`https://brocab.onrender.com/notification/${notification.notification_id}/read`, {
+        fetch(`https://www.brocab.onrender.com/notification/${notification.notification_id}/read`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

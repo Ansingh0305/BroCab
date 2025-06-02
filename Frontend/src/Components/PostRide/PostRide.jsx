@@ -434,7 +434,7 @@ styleSheet.textContent = `
 document.head.appendChild(styleSheet);
 
 const PostRidePage = ({ onSubmit }) => {
-  const { currentUser, fetchUserDetails, getIdToken } = useAuth(); // Added getIdToken from AuthContext
+  const { currentUser, fetchUserDetails, getIdToken } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     origin: "",
@@ -452,6 +452,9 @@ const PostRidePage = ({ onSubmit }) => {
   const [hoverStates, setHoverStates] = useState({});
   const [errors, setErrors] = useState({});
   const [rideDetails, setRideDetails] = useState(null); // To store ride details for the popup
+
+  // Get API base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
 
   useEffect(() => {
     const fetchLeaderName = async () => {
@@ -516,30 +519,37 @@ const PostRidePage = ({ onSubmit }) => {
   };
 
   const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    if (!currentUser) {
-      alert("You must log in before posting a ride.");
-      navigate("/login");
-      return;
-    }
-    if (!validateForm()) {
-      return;
-    }
+    e.preventDefault();
     setLoading(true);
+
     try {
-      const response = await fetch("https://brocab.onrender.com/ride", {
+      const token = await getIdToken();
+
+      if (!token) {
+        alert("Please log in before posting a ride.");
+        navigate("/login");
+        return;
+      }
+
+      const rideData = {
+        origin: form.origin,
+        destination: form.destination,
+        date: form.date,
+        time: form.time,
+        seats: parseInt(form.seats),
+        seats_filled: 1,
+        price: parseFloat(form.price),
+      };
+
+      const response = await fetch(`${API_BASE_URL}/ride`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${await getIdToken()}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...form,
-          leader: undefined,
-          seats: parseInt(form.seats, 10),
-          price: parseFloat(form.price),
-        }),
+        body: JSON.stringify(rideData),
       });
+
       if (!response.ok) {
         throw new Error("Failed to post ride.");
       }

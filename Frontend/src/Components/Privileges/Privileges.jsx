@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../firebase/AuthContext';
+import { userAPI, rideAPI } from '../../utils/api';
 import Navbar from '../Navbar/Navbar';
 import './Privileges.css';
 
@@ -22,29 +23,8 @@ const Privileges = () => {
       setLoading(true);
       setError(null);
       
-      const token = await getIdToken();
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      // API call to get user privileges
-      const response = await fetch('https://brocab.onrender.com/user/privileges', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please login again.');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      // Use centralized API function
+      const data = await userAPI.getPrivileges();
       console.log('Privilege Rides API Response:', data);
       
       // Filter only rides where can_join is true (accepted rides needing confirmation)
@@ -71,7 +51,10 @@ const Privileges = () => {
         throw new Error('No authentication token available');
       }
 
-      const response = await fetch(`https://brocab.onrender.com/ride/${rideId}/join-ride`, {
+      // Get API base URL from environment
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
+      
+      const response = await fetch(`${API_BASE_URL}/ride/${rideId}/join-ride`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +96,9 @@ const Privileges = () => {
         throw new Error('No authentication token available');
       }
 
-      const response = await fetch(`https://brocab.onrender.com/ride/${rideId}/decline`, {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
+
+      const response = await fetch(`${API_BASE_URL}/ride/${rideId}/decline`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

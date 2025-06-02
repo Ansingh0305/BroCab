@@ -2,11 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
   updateProfile,
 } from "firebase/auth";
-import { auth } from "./config";
+import { auth, googleProvider } from "./config";
 
 // Create authentication context
 const AuthContext = createContext();
@@ -25,6 +26,9 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [idToken, setIdToken] = useState(null);
+
+  // Get the API base URL from environment variable
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://www.brocab.onrender.com";
 
   // Sign up function
   const signup = async (email, password, displayName) => {
@@ -53,6 +57,18 @@ export function AuthProvider({ children }) {
     try {
       return await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
+      throw error;
+    }
+  };
+
+  // Google Sign-In function
+  const signInWithGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log("Google sign-in successful:", result);
+      return result;
+    } catch (error) {
+      console.error("Google sign-in error:", error);
       throw error;
     }
   };
@@ -128,62 +144,47 @@ export function AuthProvider({ children }) {
   // Create user profile in backend
   const createUserProfile = async (userData, userCredential = null) => {
     try {
-      // If userCredential is provided, get token directly from it
-      let token;
-      if (userCredential && userCredential.user) {
-        token = await userCredential.user.getIdToken();
-      } else {
-        token = await getIdToken();
+      // If userCredential is provided, use it directly. Otherwise, use currentUser
+      const user = userCredential?.user || currentUser;
+      
+      if (!user) {
+        throw new Error('No authenticated user found');
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-      };
+      // Get the ID token
+      const token = await user.getIdToken();
 
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-        console.log(
-          "AuthContext: Adding bearer token to request:",
-          token.substring(0, 20) + "..."
-        );
-      } else {
-        throw new Error("No authentication token available");
-      }
-
-      console.log("AuthContext: Making API call to create user profile");
-
-      const response = await fetch("https://brocab.onrender.com/user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(userData),
+      const response = await fetch(`${API_BASE_URL}/user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(userData)
       });
 
       if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: "Network error" }));
-        throw new Error(
-          error.error || `HTTP error! status: ${response.status}`
-        );
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log('User profile created successfully:', result);
+      return result;
     } catch (error) {
-      console.error("Error creating user profile:", error);
+      console.error('Error creating user profile:', error);
       throw error;
     }
   };
 
   // Fetch user details and set user name
   const fetchUserDetails = async () => {
-    
-
     let token = await getIdToken();
     console.log(typeof(token))
    
     if (token) {
       try {
-        const response = await fetch("https://brocab.onrender.com/user", {
+        const response = await fetch(`${API_BASE_URL}/user`, {
           method: "GET",
           headers: {
             // "Content-Type": "application/json", // Recommended for JSON APIs
@@ -255,6 +256,7 @@ export function AuthProvider({ children }) {
     idToken,
     signup,
     login,
+    signInWithGoogle,
     logout,
     getIdToken,
     apiCall,
