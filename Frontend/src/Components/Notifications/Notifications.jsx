@@ -9,7 +9,10 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { currentUser, getIdToken } = useAuth();
+  const { currentUser, getIdToken, apiCall } = useAuth();
+  
+  // Get API base URL from environment
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
 
   useEffect(() => {
     if (currentUser) {
@@ -29,26 +32,10 @@ const Notifications = () => {
       setLoading(true);
       setError(null);
       
-      const token = await getIdToken();
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-
-      const response = await fetch('https://www.brocab.onrender.com/user/notifications', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+      // Use the apiCall method which automatically adds the Authorization header with token
+      const response = await apiCall(`${API_BASE_URL}/user/notifications`, {
+        method: 'GET'
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please login again.');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
       const data = await response.json();
       console.log('Notifications API Response:', data);
@@ -85,14 +72,10 @@ const Notifications = () => {
       
       if (unreadNotifications.length === 0) return;
 
-      // Mark all unread notifications as read
+      // Mark all unread notifications as read using apiCall to ensure token is included
       const promises = unreadNotifications.map(notification =>
-        fetch(`https://www.brocab.onrender.com/notification/${notification.notification_id}/read`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+        apiCall(`${API_BASE_URL}/notification/${notification.notification_id}/read`, {
+          method: 'POST'
         })
       );
 

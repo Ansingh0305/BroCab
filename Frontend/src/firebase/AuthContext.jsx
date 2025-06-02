@@ -66,6 +66,15 @@ export function AuthProvider({ children }) {
     try {
       console.log("Attempting Google sign-in...");
       
+      // Check if running on an unauthorized domain and provide clear instructions
+      const currentDomain = window.location.hostname;
+      const authorizedDomains = ['localhost', '127.0.0.1', 'brocab-1c545.firebaseapp.com']; // Add your authorized domains here
+      
+      if (!authorizedDomains.includes(currentDomain)) {
+        console.warn(`Current domain (${currentDomain}) is not authorized in Firebase. Authentication might fail.`);
+        console.warn(`Please add ${currentDomain} to Firebase Console -> Authentication -> Settings -> Authorized domains`);
+      }
+      
       // Add more specific settings for better browser compatibility
       const auth_settings = {
         // This helps prevent the popup from being blocked
@@ -89,6 +98,18 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Google sign-in error code:", error.code);
       console.error("Google sign-in error message:", error.message);
+      
+      // Additional handling for auth/unauthorized-domain error
+      if (error.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        console.error(`Domain ${currentDomain} is not authorized in Firebase Console.`);
+        console.error(`Please add ${currentDomain} to Firebase Console -> Authentication -> Settings -> Authorized domains`);
+        
+        // Rethrow with more specific message
+        const enhancedError = new Error(`Domain ${currentDomain} is not authorized for Firebase Authentication. Add it to Firebase Console -> Authentication -> Settings -> Authorized domains.`);
+        enhancedError.code = error.code;
+        throw enhancedError;
+      }
       
       // Log additional error information
       if (error.customData) {
