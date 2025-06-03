@@ -1,12 +1,22 @@
 import React, { useState } from "react";
+import Navbar from '../Navbar/Navbar';
 
 // Glassmorphic card and input styles matching your main page
 const styles = {
-  container: {
+  pageWrapper: {
     minHeight: "100vh",
     width: "100vw",
     position: "relative",
-    background: "linear-gradient(135deg, #e2e4fa 0%, #c7f4f7 100%)",
+    overflow: "hidden",
+    backgroundImage: 'url("/backgroundimg.png")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  },
+  container: {
+    minHeight: "calc(100vh - 80px)", // Account for navbar height
+    width: "100vw",
+    position: "relative",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -134,51 +144,66 @@ const styles = {
   loginLinkHover: {
     color: "#7c3aed",
   },
+  bubbleContainer: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  bubble: {
+    position: 'absolute',
+    bottom: '-50px',
+    background: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: '50%',
+    animation: 'float 8s infinite',
+    pointerEvents: 'none',
+  },
+  '@keyframes float': {
+    '0%': {
+      transform: 'translateY(0)',
+      opacity: 0,
+    },
+    '50%': {
+      opacity: 0.8,
+    },
+    '100%': {
+      transform: 'translateY(-100vh)',
+      opacity: 0,
+    }
+  },
 };
 
-const BgSVG = () => (
-  <svg style={styles.backgroundSVG} viewBox="0 0 1440 900" preserveAspectRatio="none">
-    <defs>
-      <linearGradient id="bg-gradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#e2e4fa" />
-        <stop offset="100%" stopColor="#c7f4f7" />
-      </linearGradient>
-    </defs>
-    <rect width="1440" height="900" fill="url(#bg-gradient)" />
-    {/* Soft circle accents */}
-    <circle cx="220" cy="700" r="330" fill="#c7f4f7" opacity="0.45" />
-    <circle cx="1300" cy="120" r="210" fill="#d1ccfc" opacity="0.28" />
-    {/* Wavy white bottom */}
-    <path
-      d="M0,700 Q360,800 720,750 T1440,800 V900 H0 Z"
-      fill="#fff"
-      opacity="0.98"
-    />
-    {/* Dashed path */}
-    <path
-      d="M230,470 Q600,400 1200,650"
-      stroke="#6f42c1"
-      strokeWidth="13"
-      fill="none"
-      strokeDasharray="40 30"
-      strokeLinecap="round"
-    />
-    {/* Start pin */}
-    <g>
-      <circle cx="230" cy="470" r="12" fill="#6f42c1" />
-      <path d="M230 430 L255 480 L205 480 Z" fill="#6f42c1" />
-      <circle cx="230" cy="455" r="13" fill="#fff" />
-      <circle cx="230" cy="455" r="7" fill="#d1ccfc" />
-    </g>
-    {/* End pin */}
-    <g>
-      <circle cx="1200" cy="650" r="12" fill="#6f42c1" />
-      <path d="M1200 610 L1225 660 L1175 660 Z" fill="#6f42c1" />
-      <circle cx="1200" cy="635" r="13" fill="#fff" />
-      <circle cx="1200" cy="635" r="7" fill="#d1ccfc" />
-    </g>
-  </svg>
-);
+
+
+const Bubbles = () => {
+  const bubbleCount = 20;
+  const bubbles = Array.from({ length: bubbleCount }).map((_, i) => {
+    const size = Math.random() * 60 + 20;
+    const left = Math.random() * 100;
+    const animationDelay = Math.random() * 8;
+    const animationDuration = Math.random() * 4 + 6;
+
+    return (
+      <div
+        key={i}
+        style={{
+          ...styles.bubble,
+          width: size + 'px',
+          height: size + 'px',
+          left: left + '%',
+          animationDelay: animationDelay + 's',
+          animationDuration: animationDuration + 's',
+        }}
+      />
+    );
+  });
+
+  return <div style={styles.bubbleContainer}>{bubbles}</div>;
+};
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -203,9 +228,11 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <BgSVG />
-      <form style={styles.card} onSubmit={handleSubmit} autoComplete="off">
+    <div style={styles.pageWrapper}>
+      <Navbar />
+      <div style={styles.container}>
+        <Bubbles />
+        <form style={styles.card} onSubmit={handleSubmit} autoComplete="off">
         <div style={styles.title}>Forgot Password?</div>
         <div style={styles.subtitle}>
           Enter your email and we'll send you a reset link.
@@ -259,6 +286,7 @@ const ForgotPasswordPage = () => {
           Back to Login
         </a>
       </form>
+      </div>
     </div>
   );
 };

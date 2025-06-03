@@ -1,71 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../firebase/AuthContext';
+import Navbar from '../Navbar/Navbar';
 
-// SVG Background matching your hero section
-const BrocabHeroBackground = () => (
-  <svg
-    style={{
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100vh",
-      zIndex: 0,
-      pointerEvents: "none",
-      minHeight: "100vh",
-      minWidth: "100vw",
-    }}
-    viewBox="0 0 1440 900"
-    preserveAspectRatio="none"
-  >
-    <defs>
-      <linearGradient id="bg-gradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#e2e4fa" />
-        <stop offset="100%" stopColor="#c7f4f7" />
-      </linearGradient>
-    </defs>
-    <rect width="1440" height="900" fill="url(#bg-gradient)" />
-    {/* Soft circle accents */}
-    <circle cx="220" cy="700" r="330" fill="#c7f4f7" opacity="0.45" />
-    <circle cx="1300" cy="120" r="210" fill="#d1ccfc" opacity="0.28" />
-    {/* Wavy white bottom */}
-    <path
-      d="M0,700 Q360,800 720,750 T1440,800 V900 H0 Z"
-      fill="#fff"
-      opacity="0.98"
-    />
-    {/* Dashed path */}
-    <path
-      d="M230,470 Q600,400 1200,650"
-      stroke="#6f42c1"
-      strokeWidth="13"
-      fill="none"
-      strokeDasharray="40 30"
-      strokeLinecap="round"
-    />
-    {/* Start pin */}
-    <g>
-      <circle cx="230" cy="470" r="28" fill="#6f42c1" />
-      <circle cx="230" cy="470" r="14" fill="#fff" />
-    </g>
-    {/* End pin */}
-    <g>
-      <circle cx="1200" cy="650" r="28" fill="#6f42c1" />
-      <circle cx="1200" cy="650" r="14" fill="#fff" />
-    </g>
-  </svg>
-);
+
 
 const styles = {
+  pageWrapper: {
+    minHeight: "100vh",
+    width: "100vw",
+    position: "relative",
+    overflow: "hidden",
+    backgroundImage: 'url("/backgroundimg.png")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
   container: {
-    minHeight: '100vh',
+    minHeight: 'calc(100vh - 80px)',
     width: '100vw',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     position: 'relative',
     zIndex: 1,
     overflow: 'hidden',
@@ -466,54 +424,56 @@ const LoginPage = () => {
   }, []);
 
   return (
-    <div style={styles.container}>
-      <BrocabHeroBackground />
-      <div
-        style={{
-          ...styles.mainCard,
-          transform: slideIn ? 'translateY(0)' : 'translateY(60px)',
-          opacity: slideIn ? 1 : 0,
-          transition: 'transform 0.5s cubic-bezier(.4,1.4,.6,1), opacity 0.5s',
-        }}
-      >
-        <div style={styles.leftPanel}>
-          <div style={styles.header}>
-            <div style={styles.logo}>
-              <div style={styles.logoDot}></div>
-              <span style={styles.logoText}>Brocab</span>
-            </div>
-            <a 
-              href="#" 
-              style={styles.createAccountLink} 
-              onClick={e => { e.preventDefault(); navigate('/signup'); }}
-            >
-              Create an account
-            </a>
-          </div>
-          <div style={styles.titleSection}>
-            <h2 style={styles.title}>Welcome back</h2>
-            <p style={styles.subtitle}>Log in to your account to continue</p>
-          </div>
-          <LoginForm />
-          <button
-            type="button"
-            style={styles.backButton}
-            onClick={() => navigate('/')}
-            aria-label="Back to home"
-          >
-            Back
-          </button>
-        </div>
-        <div style={styles.rightPanel}>
-          <div style={styles.rightPanelContent}>
-            <div style={styles.featureCard}>
-              <div style={styles.featureIcon}>
-                <CarIcon />
+    <div style={styles.pageWrapper}>
+      <Navbar />
+      <div style={styles.container}>
+        <div
+          style={{
+            ...styles.mainCard,
+            transform: slideIn ? 'translateY(0)' : 'translateY(60px)',
+            opacity: slideIn ? 1 : 0,
+            transition: 'transform 0.5s cubic-bezier(.4,1.4,.6,1), opacity 0.5s',
+          }}
+        >
+          <div style={styles.leftPanel}>
+            <div style={styles.header}>
+              <div style={styles.logo}>
+                <div style={styles.logoDot}></div>
+                <span style={styles.logoText}>Brocab</span>
               </div>
-              <h3 style={styles.featureTitle}>Reliable Rides</h3>
-              <p style={styles.featureText}>
-                Travel together with trusted students heading to the same destination. Save time, money, and the environment.
-              </p>
+              <a 
+                href="#" 
+                style={styles.createAccountLink} 
+                onClick={e => { e.preventDefault(); navigate('/signup'); }}
+              >
+                Create an account
+              </a>
+            </div>
+            <div style={styles.titleSection}>
+              <h2 style={styles.title}>Welcome back</h2>
+              <p style={styles.subtitle}>Log in to your account to continue</p>
+            </div>
+            <LoginForm />
+            <button
+              type="button"
+              style={styles.backButton}
+              onClick={() => navigate('/')}
+              aria-label="Back to home"
+            >
+              Back
+            </button>
+          </div>
+          <div style={styles.rightPanel}>
+            <div style={styles.rightPanelContent}>
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon}>
+                  <CarIcon />
+                </div>
+                <h3 style={styles.featureTitle}>Reliable Rides</h3>
+                <p style={styles.featureText}>
+                  Travel together with trusted students heading to the same destination. Save time, money, and the environment.
+                </p>
+              </div>
             </div>
           </div>
         </div>
