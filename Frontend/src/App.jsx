@@ -10,10 +10,10 @@ import PostRidePage from "./Components/PostRide/PostRide";
 import Requested from "./Components/Requested/Requested";
 import MyBookedRides from "./Components/MyBookedRides/MyBookedRides";
 import Privileges from "./Components/Privileges/Privileges";
-
 import MyRides from "./Components/Myrides/MyRides"; 
-
+import UpdateProfilePage from "./Components/Pages/UpdateProfilePage";
 import Notifications from "./Components/Notifications/Notifications";
+
 function App() {
   return (
     <BrowserRouter>
@@ -32,6 +32,7 @@ function App() {
         <Route path="my-booked-rides" element={<MyBookedRides />} />
         <Route path="/privileges" element={<Privileges/>}/>
         <Route path="/my-rides" element={<MyRides/>}/>
+        <Route path="/update-profile" element={<UpdateProfilePage />} />
       </Routes>
     </BrowserRouter>
   );
