@@ -45,10 +45,10 @@ func SendJoinRequest(c *gin.Context) {
 		return
 	}
 
-	// Get ride leader information for notification
-	rideLeader, err := getUserByID(targetRide.LeaderID)
+	// Get ride leader for notifications
+	rideLeader, err := getUser(targetRide.LeaderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get ride leader information"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ride leader not found"})
 		return
 	}
 
@@ -229,6 +229,77 @@ func GetUserSentRequests(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GET /user/check-involvement/:date - Check if user has any involvement in rides for a specific date
+func CheckInvolvementForDate(c *gin.Context) {
+	dateParam := c.Param("date")
+	userID := c.MustGet("uid").(string)
+
+	// Validate date format
+	if _, err := time.Parse("2006-01-02", dateParam); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
+		return
+	}
+
+	// Get user to find their ID for comparison
+	user, err := getUser(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Check if user has created any rides on this date
+	var createdRideCount int64
+	if err := DB.Model(&Ride{}).Where("leader_id = ? AND date = ?", user.ID, dateParam).Count(&createdRideCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check created rides"})
+		return
+	}
+
+	// Check for pending requests on this date
+	var pendingRequestCount int64
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%pending%", dateParam).
+		Count(&pendingRequestCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check pending requests"})
+		return
+	}
+
+	// Check for approved privileges on this date
+	var approvedRequestCount int64
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%approved%", dateParam).
+		Count(&approvedRequestCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check approved privileges"})
+		return
+	}
+
+	// Check for active participations on this date
+	var participationCount int64
+	if err := DB.Table("participants").
+		Joins("JOIN rides ON participants.ride_id = rides.id").
+		Where("participants.user_id = ? AND rides.date = ?", userID, dateParam).
+		Count(&participationCount).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check participations"})
+		return
+	}
+
+	totalInvolvement := createdRideCount + pendingRequestCount + approvedRequestCount + participationCount
+	hasInvolvement := totalInvolvement > 0
+
+	c.JSON(http.StatusOK, gin.H{
+		"date":                    dateParam,
+		"has_involvement":         hasInvolvement,
+		"created_rides":           createdRideCount,
+		"pending_requests":        pendingRequestCount,
+		"approved_privileges":     approvedRequestCount,
+		"active_participations":   participationCount,
+		"total_involvement_count": totalInvolvement,
+	})
+}
+
 // DELETE /user/clear-involvement/:date - Cancel all pending requests and privileges for a specific date
 func ClearInvolvementForDate(c *gin.Context) {
 	dateParam := c.Param("date")
@@ -240,7 +311,6 @@ func ClearInvolvementForDate(c *gin.Context) {
 		return
 	}
 
-	// Find all pending requests for rides on this date - using ILIKE for case insensitive matching
 	var pendingRequestsForDate []Request
 	if err := DB.Table("requests").
 		Joins("JOIN rides ON requests.ride_id = rides.id").
@@ -262,18 +332,37 @@ func ClearInvolvementForDate(c *gin.Context) {
 		return
 	}
 
+	// Find all rides where user is actually a participant on this date
+	var participationsForDate []Participant
+	if err := DB.Table("participants").
+		Joins("JOIN rides ON participants.ride_id = rides.id").
+		Where("participants.user_id = ? AND rides.date = ?", userID, dateParam).
+		Find(&participationsForDate).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch participations for date"})
+		return
+	}
+
 	pendingCount := len(pendingRequestsForDate)
 	approvedCount := len(approvedRequestsForDate)
-	totalCount := pendingCount + approvedCount
+	participationCount := len(participationsForDate)
+	totalCount := pendingCount + approvedCount + participationCount
 
 	if totalCount == 0 {
 		c.JSON(http.StatusOK, gin.H{
-			"message":              fmt.Sprintf("No requests or privileges to cancel for %s", dateParam),
-			"cancelled_requests":   0,
-			"cancelled_privileges": 0,
-			"total_cancelled":      0,
-			"date":                 dateParam,
+			"message":                  fmt.Sprintf("No requests, privileges, or participations to cancel for %s", dateParam),
+			"cancelled_requests":       0,
+			"cancelled_privileges":     0,
+			"cancelled_participations": 0,
+			"total_cancelled":          0,
+			"date":                     dateParam,
 		})
+		return
+	}
+
+	// Get user details for notifications
+	user, err := getUser(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user details"})
 		return
 	}
 
@@ -301,11 +390,57 @@ func ClearInvolvementForDate(c *gin.Context) {
 		}
 	}
 
+	// Remove user from rides they're participating in and notify leaders
+	notificationErrors := 0
+	if participationCount > 0 {
+		for _, participation := range participationsForDate {
+			// Get ride details for notification
+			var ride Ride
+			if err := DB.First(&ride, "id = ?", participation.RideID).Error; err != nil {
+				continue // Skip if ride doesn't exist
+			}
+
+			// Get ride leader details for notification
+			leader, err := getUser(ride.LeaderID)
+			if err != nil {
+				continue // Skip if leader doesn't exist
+			}
+
+			// Remove the participation
+			if err := DB.Delete(&participation).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove participation"})
+				return
+			}
+
+			// Update seats filled count
+			if err := DB.Model(&ride).Update("seats_filled", ride.SeatsFilled-1).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update ride seats"})
+				return
+			}
+
+			// Send notification to the ride leader
+			title := "Participant Cancelled"
+			message := fmt.Sprintf("%s has cancelled their participation in your ride from %s to %s on %s at %s",
+				user.Name, ride.Origin, ride.Destination, ride.Date, ride.Time)
+			if err := createNotification(leader.FirebaseUID, title, message, "participant_cancelled", participation.RideID); err != nil {
+				notificationErrors++
+				fmt.Printf("Failed to create notification for ride leader %s: %v\n", leader.FirebaseUID, err)
+			}
+		}
+	}
+
+	responseMessage := fmt.Sprintf("Successfully cleared all ride involvement for %s", dateParam)
+	if notificationErrors > 0 {
+		responseMessage += fmt.Sprintf(" (Note: %d notification(s) failed to send)", notificationErrors)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message":              fmt.Sprintf("Successfully cleared all ride involvement for %s", dateParam),
-		"cancelled_requests":   pendingCount,
-		"cancelled_privileges": approvedCount,
-		"total_cancelled":      totalCount,
-		"date":                 dateParam,
+		"message":                  responseMessage,
+		"cancelled_requests":       pendingCount,
+		"cancelled_privileges":     approvedCount,
+		"cancelled_participations": participationCount,
+		"total_cancelled":          totalCount,
+		"date":                     dateParam,
+		"notification_errors":      notificationErrors,
 	})
 }
