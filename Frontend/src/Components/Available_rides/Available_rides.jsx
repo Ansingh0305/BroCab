@@ -724,7 +724,7 @@ const Available_rides = () => {
 
                           <div className="bcRides-price-book">
                             <div className="bcRides-price-info">
-                              <span className="bcRides-price">~₹{ride.approxPrice || '0'}</span>
+                              <span className="bcRides-price">₹{ride.approxPrice || '0'}</span>
                               <span className="bcRides-price-label"> approx per person</span>
                             </div>
                             <button 
