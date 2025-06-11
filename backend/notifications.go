@@ -53,24 +53,34 @@ func GetUserNotifications(c *gin.Context) {
 	// Build response with ride details
 	var response []map[string]interface{}
 	for _, n := range notifications {
-		var ride Ride
-		if err := DB.First(&ride, "id = ?", n.RideID).Error; err != nil {
-			continue
-		}
-
 		entry := map[string]interface{}{
 			"id":          n.ID,
 			"title":       n.Title,
 			"message":     n.Message,
 			"type":        n.Type,
 			"ride_id":     n.RideID,
-			"origin":      ride.Origin,
-			"destination": ride.Destination,
-			"date":        ride.Date,
-			"time":        ride.Time,
 			"is_read":     n.IsRead,
 			"created_at":  n.CreatedAt,
 		}
+
+		// Try to get ride details, but don't skip notification if ride doesn't exist
+		var ride Ride
+		if err := DB.First(&ride, "id = ?", n.RideID).Error; err == nil {
+			// Ride exists - include full details
+			entry["origin"] = ride.Origin
+			entry["destination"] = ride.Destination
+			entry["date"] = ride.Date
+			entry["time"] = ride.Time
+			entry["ride_status"] = "active"
+		} else {
+			// Ride was deleted - show limited info for historical context
+			entry["origin"] = "Unknown"
+			entry["destination"] = "Unknown" 
+			entry["date"] = "Unknown"
+			entry["time"] = "Unknown"
+			entry["ride_status"] = "deleted"
+		}
+
 		response = append(response, entry)
 	}
 
@@ -111,4 +121,24 @@ func GetUnreadNotificationCount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"unread_count": count})
+}
+
+// PUT /user/notifications/mark-all-read - Mark all notifications as read for the user
+func MarkAllNotificationsAsRead(c *gin.Context) {
+	userID := c.MustGet("uid").(string)
+
+	// Update all unread notifications for this user
+	result := DB.Model(&Notification{}).
+		Where("user_id = ? AND is_read = ?", userID, false).
+		Update("is_read", true)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark notifications as read"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "All notifications marked as read",
+		"updated_count": result.RowsAffected,
+	})
 }

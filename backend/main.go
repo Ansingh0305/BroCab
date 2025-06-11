@@ -70,6 +70,7 @@ func main() {
 	protected.DELETE("/user/clear-involvement/:date", ClearInvolvementForDate)    // DELETE /user/clear-involvement/:date
 	protected.GET("/user/notifications", GetUserNotifications)                    // GET /user/notifications
 	protected.GET("/user/notifications/unread-count", GetUnreadNotificationCount) // GET /user/notifications/unread-count
+	protected.PUT("/user/notifications/mark-all-read", MarkAllNotificationsAsRead) // PUT /user/notifications/mark-all-read
 	protected.DELETE("/user/cancel-ride/:rideID", CancelRideParticipation)        // DELETE /user/cancel-ride/:rideID (unified)
 
 	// Ride APIs
