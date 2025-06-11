@@ -715,7 +715,9 @@
   border-color: rgba(255, 255, 255, 0.3);
   border-top-color: white;
   margin-bottom: 20px;
-}.bcRides-book-btn.blocked,
+}
+
+.bcRides-book-btn.blocked,
 .bcRides-modal-request-btn.blocked {
   background: #6b7280 !important;
   cursor: not-allowed !important;
@@ -728,6 +730,34 @@
   opacity: 0.7;
 }
 
+/* Ride Leader Section */
+.bcRides-modal-leader {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bcRides-modal-participant.leader {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.bcRides-modal-participant-avatar.leader-avatar {
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  font-size: 1.2em;
+}
+
+.bcRides-modal-participant-email,
+.bcRides-modal-participant-phone {
+  display: block;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4px;
+}
 
 /* Responsive */
 @media (max-width: 768px) {
