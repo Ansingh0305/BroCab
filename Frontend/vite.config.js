@@ -4,8 +4,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    // Remove HTTPS for now
     host: true,
-    port: 5173
-  }
+    port: 5173,
+    historyApiFallback: true
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
 })

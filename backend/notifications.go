@@ -54,13 +54,13 @@ func GetUserNotifications(c *gin.Context) {
 	var response []map[string]interface{}
 	for _, n := range notifications {
 		entry := map[string]interface{}{
-			"id":          n.ID,
-			"title":       n.Title,
-			"message":     n.Message,
-			"type":        n.Type,
-			"ride_id":     n.RideID,
-			"is_read":     n.IsRead,
-			"created_at":  n.CreatedAt,
+			"id":         n.ID,
+			"title":      n.Title,
+			"message":    n.Message,
+			"type":       n.Type,
+			"ride_id":    n.RideID,
+			"is_read":    n.IsRead,
+			"created_at": n.CreatedAt,
 		}
 
 		// Try to get ride details, but don't skip notification if ride doesn't exist
@@ -75,7 +75,7 @@ func GetUserNotifications(c *gin.Context) {
 		} else {
 			// Ride was deleted - show limited info for historical context
 			entry["origin"] = "Unknown"
-			entry["destination"] = "Unknown" 
+			entry["destination"] = "Unknown"
 			entry["date"] = "Unknown"
 			entry["time"] = "Unknown"
 			entry["ride_status"] = "deleted"

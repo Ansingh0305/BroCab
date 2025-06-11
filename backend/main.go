@@ -59,19 +59,19 @@ func main() {
 	protected.Use(FirebaseAuthMiddleware())
 
 	// User APIs
-	protected.GET("/user", GetCurrentUser)                                        // GET /user - Get current user profile
-	protected.PUT("/user", UpdateCurrentUser)                                     // PUT /user - Update current user profile
-	protected.POST("/user", CreateUser)                                           // POST /user
-	protected.GET("/user/:userID", GetUserBasic)                                  // GET /user/:userID
-	protected.GET("/user/rides/posted", GetRidesPostedByUser)                     // GET /user/rides/posted
-	protected.GET("/user/rides/joined", GetRidesJoinedByUser)                     // GET /user/rides/joined
-	protected.GET("/user/privileges", GetUserPrivileges)                          // GET /user/privileges
-	protected.GET("/user/requests", GetUserSentRequests)                          // GET /user/requests
-	protected.DELETE("/user/clear-involvement/:date", ClearInvolvementForDate)    // DELETE /user/clear-involvement/:date
-	protected.GET("/user/notifications", GetUserNotifications)                    // GET /user/notifications
-	protected.GET("/user/notifications/unread-count", GetUnreadNotificationCount) // GET /user/notifications/unread-count
+	protected.GET("/user", GetCurrentUser)                                         // GET /user - Get current user profile
+	protected.PUT("/user", UpdateCurrentUser)                                      // PUT /user - Update current user profile
+	protected.POST("/user", CreateUser)                                            // POST /user
+	protected.GET("/user/:userID", GetUserBasic)                                   // GET /user/:userID
+	protected.GET("/user/rides/posted", GetRidesPostedByUser)                      // GET /user/rides/posted
+	protected.GET("/user/rides/joined", GetRidesJoinedByUser)                      // GET /user/rides/joined
+	protected.GET("/user/privileges", GetUserPrivileges)                           // GET /user/privileges
+	protected.GET("/user/requests", GetUserSentRequests)                           // GET /user/requests
+	protected.DELETE("/user/clear-involvement/:date", ClearInvolvementForDate)     // DELETE /user/clear-involvement/:date
+	protected.GET("/user/notifications", GetUserNotifications)                     // GET /user/notifications
+	protected.GET("/user/notifications/unread-count", GetUnreadNotificationCount)  // GET /user/notifications/unread-count
 	protected.PUT("/user/notifications/mark-all-read", MarkAllNotificationsAsRead) // PUT /user/notifications/mark-all-read
-	protected.DELETE("/user/cancel-ride/:rideID", CancelRideParticipation)        // DELETE /user/cancel-ride/:rideID (unified)
+	protected.DELETE("/user/cancel-ride/:rideID", CancelRideParticipation)         // DELETE /user/cancel-ride/:rideID (unified)
 
 	// Ride APIs
 	protected.POST("/ride", AddRide)                                    // POST /ride
