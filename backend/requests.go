@@ -115,7 +115,7 @@ func SendJoinRequest(c *gin.Context) {
 	notificationTitle := "New Join Request"
 	notificationMessage := fmt.Sprintf("%s has requested to join your ride from %s to %s on %s at %s",
 		user.Name, targetRide.Origin, targetRide.Destination, targetRide.Date, targetRide.Time)
-	
+
 	if err := createNotification(rideLeader.FirebaseUID, notificationTitle, notificationMessage, "join_request", uint(rideID)); err != nil {
 		// Log error but don't fail the request since the join request was created successfully
 		fmt.Printf("Failed to create notification for ride leader %s: %v\n", rideLeader.FirebaseUID, err)
@@ -308,4 +308,186 @@ func ClearInvolvementForDate(c *gin.Context) {
 		"total_cancelled":      totalCount,
 		"date":                 dateParam,
 	})
+}
+
+// GET /user/check-involvement/:date - Check if user has any involvement for a specific date
+func CheckInvolvementForDate(c *gin.Context) {
+	dateParam := c.Param("date")
+	userID := c.MustGet("uid").(string)
+
+	// Validate date format
+	if _, err := time.Parse("2006-01-02", dateParam); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
+		return
+	}
+
+	user, err := getUser(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	involvement := map[string]interface{}{
+		"has_involvement": false,
+		"date":            dateParam,
+		"details": map[string]interface{}{
+			"posted_rides":        []map[string]interface{}{},
+			"joined_rides":        []map[string]interface{}{},
+			"pending_requests":    []map[string]interface{}{},
+			"approved_privileges": []map[string]interface{}{},
+		},
+		"summary": map[string]int{
+			"posted_count":   0,
+			"joined_count":   0,
+			"pending_count":  0,
+			"approved_count": 0,
+			"total_count":    0,
+		},
+	}
+
+	// 1. Check for posted rides (user is the leader)
+	var postedRides []Ride
+	if err := DB.Where("leader_id = ? AND date = ?", user.ID, dateParam).Find(&postedRides).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check posted rides"})
+		return
+	}
+
+	postedRideDetails := []map[string]interface{}{}
+	for _, ride := range postedRides {
+		postedRideDetails = append(postedRideDetails, map[string]interface{}{
+			"ride_id":      ride.ID,
+			"origin":       ride.Origin,
+			"destination":  ride.Destination,
+			"time":         ride.Time,
+			"seats":        ride.Seats,
+			"seats_filled": ride.SeatsFilled,
+			"price":        ride.Price,
+		})
+	}
+
+	// 2. Check for joined rides (user is a participant)
+	var participants []Participant
+	if err := DB.Table("participants").
+		Joins("JOIN rides ON participants.ride_id = rides.id").
+		Where("participants.user_id = ? AND rides.date = ?", userID, dateParam).
+		Find(&participants).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check joined rides"})
+		return
+	}
+
+	joinedRideDetails := []map[string]interface{}{}
+	for _, participant := range participants {
+		var ride Ride
+		if err := DB.First(&ride, "id = ?", participant.RideID).Error; err == nil {
+			// Get leader info
+			leader, err := getUserByID(ride.LeaderID)
+			leaderName := "Unknown"
+			if err == nil {
+				leaderName = leader.Name
+			}
+
+			joinedRideDetails = append(joinedRideDetails, map[string]interface{}{
+				"ride_id":     ride.ID,
+				"origin":      ride.Origin,
+				"destination": ride.Destination,
+				"time":        ride.Time,
+				"price":       ride.Price,
+				"leader_name": leaderName,
+				"joined_at":   participant.JoinedAt,
+			})
+		}
+	}
+
+	// 3. Check for pending requests
+	var pendingRequests []Request
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%pending%", dateParam).
+		Find(&pendingRequests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check pending requests"})
+		return
+	}
+
+	pendingRequestDetails := []map[string]interface{}{}
+	for _, request := range pendingRequests {
+		var ride Ride
+		if err := DB.First(&ride, "id = ?", request.RideID).Error; err == nil {
+			// Get leader info
+			leader, err := getUserByID(ride.LeaderID)
+			leaderName := "Unknown"
+			if err == nil {
+				leaderName = leader.Name
+			}
+
+			pendingRequestDetails = append(pendingRequestDetails, map[string]interface{}{
+				"request_id":   request.ID,
+				"ride_id":      ride.ID,
+				"origin":       ride.Origin,
+				"destination":  ride.Destination,
+				"time":         ride.Time,
+				"price":        ride.Price,
+				"leader_name":  leaderName,
+				"requested_at": request.CreatedAt,
+			})
+		}
+	}
+
+	// 4. Check for approved privileges
+	var approvedRequests []Request
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%approved%", dateParam).
+		Find(&approvedRequests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check approved privileges"})
+		return
+	}
+
+	approvedPrivilegeDetails := []map[string]interface{}{}
+	for _, request := range approvedRequests {
+		var ride Ride
+		if err := DB.First(&ride, "id = ?", request.RideID).Error; err == nil {
+			// Get leader info
+			leader, err := getUserByID(ride.LeaderID)
+			leaderName := "Unknown"
+			if err == nil {
+				leaderName = leader.Name
+			}
+
+			approvedPrivilegeDetails = append(approvedPrivilegeDetails, map[string]interface{}{
+				"request_id":      request.ID,
+				"ride_id":         request.RideID,
+				"origin":          ride.Origin,
+				"destination":     ride.Destination,
+				"time":            ride.Time,
+				"price":           ride.Price,
+				"leader_name":     leaderName,
+				"approved_at":     request.UpdatedAt,
+				"seats_available": ride.Seats - ride.SeatsFilled,
+				"can_join":        ride.SeatsFilled < ride.Seats,
+			})
+		}
+	}
+
+	// Update involvement details and summary
+	postedCount := len(postedRides)
+	joinedCount := len(participants)
+	pendingCount := len(pendingRequests)
+	approvedCount := len(approvedRequests)
+	totalCount := postedCount + joinedCount + pendingCount + approvedCount
+
+	involvement["has_involvement"] = totalCount > 0
+	involvement["details"].(map[string]interface{})["posted_rides"] = postedRideDetails
+	involvement["details"].(map[string]interface{})["joined_rides"] = joinedRideDetails
+	involvement["details"].(map[string]interface{})["pending_requests"] = pendingRequestDetails
+	involvement["details"].(map[string]interface{})["approved_privileges"] = approvedPrivilegeDetails
+
+	involvement["summary"].(map[string]int)["posted_count"] = postedCount
+	involvement["summary"].(map[string]int)["joined_count"] = joinedCount
+	involvement["summary"].(map[string]int)["pending_count"] = pendingCount
+	involvement["summary"].(map[string]int)["approved_count"] = approvedCount
+	involvement["summary"].(map[string]int)["total_count"] = totalCount
+
+	c.JSON(http.StatusOK, involvement)
 }
