@@ -67,6 +67,7 @@ func main() {
 	protected.GET("/user/rides/joined", GetRidesJoinedByUser)                      // GET /user/rides/joined
 	protected.GET("/user/privileges", GetUserPrivileges)                           // GET /user/privileges
 	protected.GET("/user/requests", GetUserSentRequests)                           // GET /user/requests
+	protected.GET("/user/check-involvement/:date", CheckInvolvementForDate)        // GET /user/check-involvement/:date - Check involvement for specific date
 	protected.DELETE("/user/clear-involvement/:date", ClearInvolvementForDate)     // DELETE /user/clear-involvement/:date
 	protected.GET("/user/notifications", GetUserNotifications)                     // GET /user/notifications
 	protected.GET("/user/notifications/unread-count", GetUnreadNotificationCount)  // GET /user/notifications/unread-count
