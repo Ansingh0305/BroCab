@@ -45,23 +45,22 @@ func SendJoinRequest(c *gin.Context) {
 		return
 	}
 
-	// Get ride leader information for notification
-	rideLeader, err := getUserByID(targetRide.LeaderID)
+	// Get ride leader for notifications
+	rideLeader, err := getUser(targetRide.LeaderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get ride leader information"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ride leader not found"})
 		return
 	}
 
-	// Check if user has already created a ride on the same date
-	var existingRideCount int64
-	if err := DB.Model(&Ride{}).Where("leader_id = ? AND date = ?", user.ID, targetRide.Date).Count(&existingRideCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing rides"})
-		return
-	}
+	// Check for any existing involvement on this date
+	hasInvolvement, involvementDetails := checkUserInvolvementForDate(userID, user.ID, targetRide.Date)
 
-	if existingRideCount > 0 {
+	if hasInvolvement {
 		c.JSON(http.StatusConflict, gin.H{
-			"error": "You cannot send a join request and create a ride on the same day. You have already created a ride for " + targetRide.Date,
+			"error":               "You are already involved in rides for this date. Please clear your involvement first.",
+			"involvement_details": involvementDetails,
+			"action_required":     "clear_involvement",
+			"date":                targetRide.Date,
 		})
 		return
 	}
@@ -308,6 +307,58 @@ func ClearInvolvementForDate(c *gin.Context) {
 		"total_cancelled":      totalCount,
 		"date":                 dateParam,
 	})
+}
+
+// Helper function to check user involvement for a specific date
+// Returns (hasInvolvement bool, involvementDetails map)
+func checkUserInvolvementForDate(userID string, userDBID uint, date string) (bool, map[string]interface{}) {
+	// Check if user has created any rides on this date
+	var createdRideCount int64
+	if err := DB.Model(&Ride{}).Where("leader_id = ? AND date = ?", userDBID, date).Count(&createdRideCount).Error; err != nil {
+		return false, map[string]interface{}{"error": "Failed to check created rides"}
+	}
+
+	// Check for pending requests on this date
+	var pendingRequestCount int64
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%pending%", date).
+		Count(&pendingRequestCount).Error; err != nil {
+		return false, map[string]interface{}{"error": "Failed to check pending requests"}
+	}
+
+	// Check for approved privileges on this date
+	var approvedRequestCount int64
+	if err := DB.Table("requests").
+		Joins("JOIN rides ON requests.ride_id = rides.id").
+		Where("requests.user_id = ? AND requests.status ILIKE ? AND rides.date = ?",
+			userID, "%approved%", date).
+		Count(&approvedRequestCount).Error; err != nil {
+		return false, map[string]interface{}{"error": "Failed to check approved privileges"}
+	}
+
+	// Check for active participations on this date
+	var participationCount int64
+	if err := DB.Table("participants").
+		Joins("JOIN rides ON participants.ride_id = rides.id").
+		Where("participants.user_id = ? AND rides.date = ?", userID, date).
+		Count(&participationCount).Error; err != nil {
+		return false, map[string]interface{}{"error": "Failed to check participations"}
+	}
+
+	totalInvolvement := createdRideCount + pendingRequestCount + approvedRequestCount + participationCount
+	hasInvolvement := totalInvolvement > 0
+
+	involvementDetails := map[string]interface{}{
+		"created_rides":           createdRideCount,
+		"pending_requests":        pendingRequestCount,
+		"approved_privileges":     approvedRequestCount,
+		"active_participations":   participationCount,
+		"total_involvement_count": totalInvolvement,
+	}
+
+	return hasInvolvement, involvementDetails
 }
 
 // GET /user/check-involvement/:date - Check if user has any involvement for a specific date

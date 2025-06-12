@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"time"
-
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -58,20 +58,15 @@ func AddRide(c *gin.Context) {
 		return
 	}
 
-	// Check if user has sent any join requests on the same date
-	var existingRequestCount int64
-	if err := DB.Table("requests").
-		Joins("JOIN rides ON requests.ride_id = rides.id").
-		Where("requests.user_id = ? AND rides.date = ? AND requests.status IN ?",
-			userID.(string), ride.Date, []string{"pending", "approved"}).
-		Count(&existingRequestCount).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing requests"})
-		return
-	}
+	// Check for any existing involvement on this date
+	hasInvolvement, involvementDetails := checkUserInvolvementForDate(userID.(string), user.ID, ride.Date)
 
-	if existingRequestCount > 0 {
+	if hasInvolvement {
 		c.JSON(http.StatusConflict, gin.H{
-			"error": "You cannot create a ride and send join requests on the same day. You have already sent requests for rides on " + ride.Date,
+			"error":               "You are already involved in rides for this date. Please clear your involvement first.",
+			"involvement_details": involvementDetails,
+			"action_required":     "clear_involvement",
+			"date":                ride.Date,
 		})
 		return
 	}
@@ -308,4 +303,95 @@ func DeleteRide(c *gin.Context) {
 		"participants_notified": notificationCount,
 		"ride_id":               rideID,
 	})
+}
+
+// cleanupExpiredRides removes all rides with dates that have already passed
+func cleanupExpiredRides() {
+	currentDate := time.Now().Format("2006-01-02")
+
+	// Find all rides with dates before today
+	var expiredRides []Ride
+	if err := DB.Where("date < ?", currentDate).Find(&expiredRides).Error; err != nil {
+		log.Printf("Failed to find expired rides: %v", err)
+		return
+	}
+
+	if len(expiredRides) == 0 {
+		log.Println("No expired rides found")
+		return
+	}
+
+	// Start a transaction to ensure data consistency
+	tx := DB.Begin()
+	if tx.Error != nil {
+		log.Printf("Failed to start transaction for cleanup: %v", tx.Error)
+		return
+	}
+
+	deletedCount := 0
+	for _, ride := range expiredRides {
+		// Get all participants for this ride to send completion notifications
+		var participants []Participant
+		if err := tx.Where("ride_id = ?", ride.ID).Find(&participants).Error; err != nil {
+			log.Printf("Failed to fetch participants for ride %d: %v", ride.ID, err)
+			continue
+		}
+
+		// Get ride leader details for the completion notification
+		var leader User
+		if err := tx.First(&leader, "id = ?", ride.LeaderID).Error; err != nil {
+			log.Printf("Failed to fetch leader for ride %d: %v", ride.ID, err)
+			continue
+		}
+
+		// Send "Ride Completed" notifications to all participants BEFORE deleting
+		participantCount := len(participants)
+		title := "Ride Completed"
+		message := fmt.Sprintf("Your ride from %s to %s on %s at %s with leader %s has been completed. Total participants: %d",
+			ride.Origin, ride.Destination, ride.Date, ride.Time, leader.Name, participantCount)
+
+		// Send completion notification to all participants
+		for _, participant := range participants {
+			if err := createNotification(participant.UserID, title, message, "ride_completed", ride.ID); err != nil {
+				log.Printf("Failed to create completion notification for participant %s: %v", participant.UserID, err)
+			}
+		}
+
+		// Also send completion notification to the leader
+		leaderMessage := fmt.Sprintf("Your ride from %s to %s on %s at %s has been completed. Total participants: %d",
+			ride.Origin, ride.Destination, ride.Date, ride.Time, participantCount)
+		if err := createNotification(leader.FirebaseUID, title, leaderMessage, "ride_completed", ride.ID); err != nil {
+			log.Printf("Failed to create completion notification for leader %s: %v", leader.FirebaseUID, err)
+		}
+
+		// Delete ride-related data (but keep notifications for history)
+		// 1. Delete all participants
+		if err := tx.Where("ride_id = ?", ride.ID).Delete(&Participant{}).Error; err != nil {
+			log.Printf("Failed to delete participants for ride %d: %v", ride.ID, err)
+			continue
+		}
+
+		// 2. Delete all join requests
+		if err := tx.Where("ride_id = ?", ride.ID).Delete(&Request{}).Error; err != nil {
+			log.Printf("Failed to delete requests for ride %d: %v", ride.ID, err)
+			continue
+		}
+
+		// 3. Finally delete the ride itself
+		if err := tx.Delete(&ride).Error; err != nil {
+			log.Printf("Failed to delete expired ride %d: %v", ride.ID, err)
+			continue
+		}
+
+		// NOTE: We intentionally DO NOT delete notifications - they serve as ride history
+		deletedCount++
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		log.Printf("Failed to commit cleanup transaction: %v", err)
+		return
+	}
+
+	log.Printf("✅ Cleanup completed: %d expired rides deleted (out of %d found). Completion notifications sent to all participants.", deletedCount, len(expiredRides))
 }

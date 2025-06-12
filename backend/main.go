@@ -47,8 +47,11 @@ func main() {
 		c.JSON(200, gin.H{"message": "This is a public endpoint"})
 	})
 
-	// Ping endpoint for testing connectivity
+	// Ping endpoint for testing connectivity with cleanup
 	r.GET("/ping", func(c *gin.Context) {
+		// Clean up expired rides
+		cleanupExpiredRides()
+
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
 		})
@@ -67,7 +70,6 @@ func main() {
 	protected.GET("/user/rides/joined", GetRidesJoinedByUser)                      // GET /user/rides/joined
 	protected.GET("/user/privileges", GetUserPrivileges)                           // GET /user/privileges
 	protected.GET("/user/requests", GetUserSentRequests)                           // GET /user/requests
-	protected.GET("/user/check-involvement/:date", CheckInvolvementForDate)        // GET /user/check-involvement/:date - Check involvement for specific date
 	protected.DELETE("/user/clear-involvement/:date", ClearInvolvementForDate)     // DELETE /user/clear-involvement/:date
 	protected.GET("/user/notifications", GetUserNotifications)                     // GET /user/notifications
 	protected.GET("/user/notifications/unread-count", GetUnreadNotificationCount)  // GET /user/notifications/unread-count
