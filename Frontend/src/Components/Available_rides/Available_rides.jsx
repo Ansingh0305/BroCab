@@ -200,13 +200,25 @@ const Available_rides = () => {
     }
   }, [getIdToken]);
 
-  // Function to fetch ride details and participants
+  // Function to fetch ride details, leader info, and participants
   const fetchRideDetails = async (rideId) => {
     try {
       setLoadingDetails(true);
-      const response = await apiCall(`https://brocab.onrender.com/ride/${rideId}/participants`);
-      const data = await response.json();
-      setRideDetails(data);
+      
+      // Fetch both participant details and leader details in parallel
+      const [participantsResponse, leaderResponse] = await Promise.all([
+        apiCall(`https://brocab.onrender.com/ride/${rideId}/participants`),
+        apiCall(`https://brocab.onrender.com/ride/${rideId}/leader`)
+      ]);
+
+      const participants = await participantsResponse.json();
+      const leaderData = await leaderResponse.json();
+
+      // Combine the data
+      setRideDetails({
+        leader: leaderData,
+        participants: participants
+      });
     } catch (error) {
       console.error('Error fetching ride details:', error);
       if (error.message.includes('Session expired') || error.message.includes('Authentication failed')) {
@@ -724,7 +736,7 @@ const Available_rides = () => {
 
                           <div className="bcRides-price-book">
                             <div className="bcRides-price-info">
-                              <span className="bcRides-price">₹{ride.approxPrice || '0'}</span>
+                              <span className="bcRides-price">~₹{ride.approxPrice || '0'}</span>
                               <span className="bcRides-price-label"> approx per person</span>
                             </div>
                             <button 
@@ -815,10 +827,29 @@ const Available_rides = () => {
                 </div>
 
                 <div className="bcRides-modal-section">
-                  <h3>Fellow Travelers ({rideDetails?.length || 0})</h3>
-                  {rideDetails && rideDetails.length > 0 ? (
+                  <h3>Ride Leader</h3>
+                  {rideDetails?.leader && (
+                    <div className="bcRides-modal-leader">
+                      <div className="bcRides-modal-participant leader">
+                        <div className="bcRides-modal-participant-avatar leader-avatar">
+                          <span>{rideDetails.leader.name?.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div className="bcRides-modal-participant-info">
+                          <span className="bcRides-modal-participant-name">{rideDetails.leader.name}</span>
+                          <span className="bcRides-modal-participant-gender">{rideDetails.leader.gender}</span>
+                          <span className="bcRides-modal-participant-email">{rideDetails.leader.email}</span>
+                          <span className="bcRides-modal-participant-phone">{rideDetails.leader.phone || 'Phone not available'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bcRides-modal-section">
+                  <h3>Fellow Travelers ({rideDetails?.participants?.length || 0})</h3>
+                  {rideDetails?.participants && rideDetails.participants.length > 0 ? (
                     <div className="bcRides-modal-participants">
-                      {rideDetails.map((participant, index) => (
+                      {rideDetails.participants.map((participant) => (
                         <div key={participant.participant_id} className="bcRides-modal-participant">
                           <div className="bcRides-modal-participant-avatar">
                             <span>{participant.name.charAt(0).toUpperCase()}</span>
@@ -862,3 +893,35 @@ const Available_rides = () => {
 };
 
 export default Available_rides;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
