@@ -12,10 +12,12 @@ import (
 )
 
 func main() {
-	// Load environment variables from .env file
+	// Load environment variables from .env file (optional for production)
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		log.Println("⚠️  No .env file found, using system environment variables")
+	} else {
+		log.Println("✅ .env file loaded successfully")
 	}
 
 	// Initialize Database
