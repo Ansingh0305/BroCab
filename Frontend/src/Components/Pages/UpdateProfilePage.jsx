@@ -202,7 +202,7 @@ const UserIcon = () => (
   </svg>
 );
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://www.brocab.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://brocab.onrender.com';
 
 // A helper function to get the current Firebase ID token
 const getAuthHeaders = async (getIdToken) => {
@@ -223,16 +223,6 @@ const UpdateProfilePage = () => {
     phone: "",
     gender: "",
   });
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  // Add debug logging
-  useEffect(() => {
-    console.log("Auth state:", { 
-      currentUser: currentUser ? "logged in" : "not logged in",
-      email: currentUser?.email
-    });
-  }, [currentUser]);
-
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -244,8 +234,8 @@ const UpdateProfilePage = () => {
   const [editMode, setEditMode] = useState(false);
   const [slideIn, setSlideIn] = useState(false);
   const [btnHover, setBtnHover] = useState(false);
-  
-  // Get common disabled input styles
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const getDisabledStyle = () => ({
     backgroundColor: '#f3f4f6',
     color: '#6b7280',
@@ -253,41 +243,71 @@ const UpdateProfilePage = () => {
     cursor: 'not-allowed'
   });
 
-  // Check if form data has changed
-  const hasFormChanged = () => {
-    return formData.name !== initialFormData.name ||
-           formData.phone !== initialFormData.phone ||
-           formData.gender !== initialFormData.gender;
-  };
+  const hasFormChanged = () => (
+    formData.name !== initialFormData.name ||
+    formData.phone !== initialFormData.phone ||
+    formData.gender !== initialFormData.gender
+  );
 
-  // Fetch user profile from backend
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
       const headers = await getAuthHeaders(getIdToken);
-      console.log("Fetching profile with auth headers:", !!headers.Authorization);
       
-      const response = await fetch(`${API_BASE_URL}/user`, { headers });
-      console.log("Profile API response:", response.status);
-      
+      // Fetch user data from backend first
+      const response = await fetch(`${API_BASE_URL}/user`, { 
+        method: 'GET',
+        headers
+      });
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Profile fetch error:', response.status, errorText);
-        throw new Error(errorText || 'Failed to fetch profile');
+        throw new Error(errorText || `Failed to fetch profile: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('API Response:', data);
+      
+      // Log each field separately to debug
+      console.log('User profile fields:', {
+        'name (API)': data.name,
+        'email (API)': data.email,
+        'phone (API)': data.phone,
+        'gender (API)': data.gender,
+        'name (Firebase)': currentUser?.displayName,
+        'email (Firebase)': currentUser?.email
+      });
+
+      // Merge data with priority: API > Firebase > Empty string
       const newFormData = {
-        name: data.name || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        gender: data.gender || "",
+        name: data.name || currentUser?.displayName || "",
+        email: data.email || currentUser?.email || "",
+        phone: data.phone || "",  // Phone comes from API only
+        gender: data.gender || "" // Gender comes from API only
       };
+
+      console.log('Setting form data to:', newFormData);
+      
       setFormData(newFormData);
-      setInitialFormData(newFormData); // Store initial data for comparison
+      setInitialFormData(newFormData);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setErrors({ general: "Failed to load profile" });
+      setErrors({ 
+        general: error.message || "Failed to load profile. Please check your connection and try again." 
+      });
+      
+      // Fall back to Firebase data if API fails
+      if (currentUser) {
+        const fallbackData = {
+          name: currentUser.displayName || "",
+          email: currentUser.email || "",
+          phone: "", // These fields only come from backend
+          gender: ""
+        };
+        console.log('Using fallback data:', fallbackData);
+        setFormData(fallbackData);
+        setInitialFormData(fallbackData);
+      }
     } finally {
       setLoading(false);
     }
@@ -311,9 +331,6 @@ const UpdateProfilePage = () => {
         newErrors.phone = "Please enter a valid Indian phone number (10 digits starting with 6-9)";
       }
     }
-    if (formData.password && formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
     return newErrors;
   };
 
@@ -326,13 +343,11 @@ const UpdateProfilePage = () => {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
-  const handleEdit = () => {
-    setEditMode(true);
-  };
+  const handleEdit = () => setEditMode(true);
 
   const handleCancel = () => {
     setEditMode(false);
-    setFormData(initialFormData); // Reset to initial values without fetching
+    setFormData(initialFormData);
     setErrors({});
   };
 
@@ -351,35 +366,41 @@ const UpdateProfilePage = () => {
 
     try {
       const headers = await getAuthHeaders(getIdToken);
-      console.log("Updating profile with auth headers:", !!headers.Authorization);
-      
+      // Prepare update data, only send fields that have changed
+      const updateData = {};
+      if (formData.name !== initialFormData.name) updateData.name = formData.name;
+      if (formData.phone !== initialFormData.phone) updateData.phone = formData.phone;
+      if (formData.gender !== initialFormData.gender) updateData.gender = formData.gender;
+
+      console.log('Sending update with data:', updateData);
+
       const response = await fetch(`${API_BASE_URL}/user`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({
-          name: formData.name,
-          phone: formData.phone,
-          gender: formData.gender,
-        })
+        body: JSON.stringify(updateData)
       });
-      
-      console.log("Update profile response:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Update profile error:', response.status, errorText);
         throw new Error(errorText || 'Failed to update profile');
       }
 
-      setEditMode(false);
-      // Show success message and refresh data
-      setShowSuccess(true);
-      await fetchUserProfile(); // Wait for profile refresh
+      // Get the updated user data from response
+      const updatedUser = await response.json();
+      console.log('Profile update successful:', updatedUser);
       
-      // Hide success message after 1 second
+      setEditMode(false);
+      setShowSuccess(true);
+      
+      // Update form data with the response
+      const newFormData = {
+        ...formData,
+        ...updatedUser
+      };
+      setFormData(newFormData);
+      setInitialFormData(newFormData);
       setTimeout(() => setShowSuccess(false), 1000);
     } catch (error) {
-      console.error('Update profile error:', error);
       setErrors({ general: "Failed to update profile. Please try again." });
     } finally {
       setLoading(false);
@@ -428,7 +449,6 @@ const UpdateProfilePage = () => {
               <h2 style={styles.title}>Update Profile</h2>
               <p style={styles.subtitle}>Update your account information</p>
             </div>
-
             <form onSubmit={handleSubmit}>
               {showSuccess && (
                 <div style={{
@@ -590,7 +610,6 @@ const UpdateProfilePage = () => {
               )}
             </form>
           </div>
-
           <div style={styles.rightPanel}>
             <div style={styles.featureCard}>
               <div style={styles.featureIcon}>

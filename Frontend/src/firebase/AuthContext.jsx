@@ -59,13 +59,25 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
+      
       const result = await signInWithPopup(auth, provider);
-      setCurrentUser(result.user);
-      // Optionally, update idToken here
-      const token = await result.user.getIdToken();
-      setIdToken(token);
-      return result;
+      
+      // Get fresh token
+      const token = await result.user.getIdToken(true);
+      
+      return {
+        ...result,
+        token
+      };
     } catch (error) {
+      console.error('Google sign-in error details:', {
+        code: error.code,
+        message: error.message,
+        email: error.customData?.email,
+        credential: error.credential
+      });
       throw error;
     }
   };

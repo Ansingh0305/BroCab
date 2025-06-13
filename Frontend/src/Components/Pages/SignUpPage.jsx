@@ -2,6 +2,8 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../firebase/AuthContext";
+import { getAuth } from 'firebase/auth';
+
 import Navbar from '../Navbar/Navbar';
 
 
@@ -224,6 +226,7 @@ const SignUpPage = () => {
     gender: "",
     password: ""
   });
+  const [isGoogleAuth, setIsGoogleAuth] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [slideIn, setSlideIn] = useState(false);
@@ -246,11 +249,29 @@ const SignUpPage = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Name is required";
     if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Invalid email format";
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
-    else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ""))) newErrors.phone = "Phone number must be 10 digits";
-    if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
+    
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    } else {
+      const phoneNumber = formData.phone.replace(/\D/g, "");
+      if (phoneNumber.length !== 10) {
+        newErrors.phone = "Phone number must be 10 digits";
+      } else if (!/^[6-9]\d{9}$/.test(phoneNumber)) {
+        newErrors.phone = "Please enter a valid Indian mobile number";
+      }
+    }
+    
+    // Only validate password for non-Google auth
+    if (!isGoogleAuth) {
+      if (!formData.password) newErrors.password = "Password is required";
+      else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Please select your gender";
+    }
+    
     return newErrors;
   };
 
@@ -261,11 +282,42 @@ const SignUpPage = () => {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleBlur = (e) => {
+  const handleBlur = async (e) => {
     setFocused("");
     setTouched({ ...touched, [e.target.name]: true });
     const field = e.target.name;
     const fieldError = validateForm({ ...formData, [field]: formData[field] });
+    
+    // Check email existence when email field is blurred
+    if (field === 'email' && formData.email && !fieldError.email) {
+      try {
+        const response = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email: formData.email })
+        });
+
+        let data = null;
+        if (response.headers.get('content-type')?.includes('application/json')) {
+          try {
+            data = await response.json();
+          } catch (error) {
+            console.error('Failed to parse response:', error);
+          }
+        }
+
+        if (response.status === 409 || (data && data.exists)) {
+          fieldError.email = "An account with this email already exists";
+          setTouched(prev => ({ ...prev, email: true })); // Ensure error is shown
+        }
+      } catch (error) {
+        console.error('Email check error:', error);
+        fieldError.email = "Failed to verify email. Please try again.";
+      }
+    }
+    
     setErrors({ ...errors, [field]: fieldError[field] });
   };
 
@@ -276,45 +328,83 @@ const SignUpPage = () => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
-    setTouched({
-      name: true,
-      email: true,
-      password: true,
-      phone: true,
-      gender: true
-    });
+
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setLoading(false);
       return;
     }
+
     try {
-      // Create Firebase user
-      const userCredential = await signup(formData.email, formData.password, formData.name);
-      // Prepare user data for backend
+      try {
+        // First check if email exists
+        const checkEmailResponse = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email: formData.email })
+        });
+
+        let emailData = null;
+        if (checkEmailResponse.headers.get('content-type')?.includes('application/json')) {
+          try {
+            emailData = await checkEmailResponse.json();
+          } catch (error) {
+            console.error('Failed to parse email check response:', error);
+          }
+        }
+        
+        if (checkEmailResponse.status === 409 || (emailData && emailData.exists)) {
+          setErrors({ email: "An account with this email already exists" });
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Email check error:', error);
+        setErrors({ general: "Failed to verify email. Please try again." });
+        setLoading(false);
+        return;
+      }
+
       const userData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        gender: formData.gender || undefined,
+        gender: formData.gender || undefined
       };
-      // Create user profile in backend - pass userCredential for immediate token access
-      await createUserProfile(userData, userCredential);
-      navigate("/login");
+
+      if (isGoogleAuth) {
+        // For Google auth, update profile
+        await createUserProfile(userData);
+        navigate("/dashboard");
+      } else {
+        // Regular email/password signup
+        const userCredential = await signup(formData.email, formData.password, formData.name);
+        await createUserProfile(userData, userCredential);
+        navigate("/login");
+      }
     } catch (error) {
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          setErrors({ email: "An account with this email already exists" });
-          break;
-        case "auth/invalid-email":
-          setErrors({ email: "Invalid email address" });
-          break;
-        case "auth/weak-password":
-          setErrors({ password: "Password is too weak" });
-          break;
-        default:
-          setErrors({ general: "Signup failed. Please try again." });
+      console.error('Signup error:', error);
+      if (error.code) {
+        // Firebase Auth errors
+        switch (error.code) {
+          case "auth/email-already-in-use":
+            setErrors({ email: "An account with this email already exists" });
+            break;
+          case "auth/invalid-email":
+            setErrors({ email: "Invalid email address" });
+            break;
+          case "auth/weak-password":
+            setErrors({ password: "Password is too weak" });
+            break;
+          default:
+            setErrors({ general: "Signup failed. Please try again." });
+        }
+      } else {
+        // API or other errors
+        setErrors({ general: error.message || "Signup failed. Please try again." });
       }
     } finally {
       setLoading(false);
@@ -322,46 +412,99 @@ const SignUpPage = () => {
   };
 
   // Google Sign-In Handler
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setErrors({});
 
+const handleGoogleSignIn = async () => {
+  setLoading(true);
+  setErrors({});
+  const auth = getAuth();
+
+  try {
+    const result = await signInWithGoogle();
+    const userEmail = result.user.email;
+
+    // Check if email exists in backend
     try {
-      const result = await signInWithGoogle();
-      
-      // For Google sign-in, create user profile with available data
-      const userData = {
-        name: result.user.displayName || result.user.email.split('@')[0],
-        email: result.user.email,
-        phone: '', // Google doesn't provide phone by default
-        gender: undefined
-      };
+      const response = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: userEmail })
+      });
 
-      // Create user profile in backend
-      await createUserProfile(userData, result);
-      
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      
-      // Handle different Google auth errors
-      switch (error.code) {
-        case 'auth/popup-closed-by-user':
-          setErrors({ general: 'Sign-in was cancelled' });
-          break;
-        case 'auth/popup-blocked':
-          setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
-          break;
-        case 'auth/account-exists-with-different-credential':
-          setErrors({ general: 'An account already exists with this email using a different sign-in method.' });
-          break;
-        default:
-          setErrors({ general: 'Google sign-in failed. Please try again.' });
+      let data = null;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
       }
-    } finally {
-      setLoading(false);
+
+      if (response.status === 409 || (data && data.exists === true)) {
+        // Clean up Firebase auth
+        try {
+          await result.user.delete();
+        } catch {
+          await auth.signOut();
+        }
+
+        setErrors({ general: "An account with this email already exists. Please log in instead." });
+        navigate('/login');
+        return;
+      }
+    } catch (error) {
+      console.error('Email check error:', error);
+      try {
+        await result.user.delete();
+      } catch {
+        await auth.signOut();
+      }
+      setErrors({ general: "Failed to verify email. Please try again." });
+      return;
     }
-  };
+
+    // Email doesn't exist, prefill form
+    setFormData(prev => ({
+      ...prev,
+      name: result.user.displayName || result.user.email.split('@')[0],
+      email: result.user.email,
+      password: '', // Don't store token
+    }));
+
+    setIsGoogleAuth(true);
+    setTouched({
+      name: true,
+      email: true,
+      phone: false,
+      gender: false
+    });
+    phoneRef.current?.focus();
+
+  } catch (error) {
+    console.error('Google sign-in error:', error);
+    try {
+      if (auth.currentUser) {
+        await auth.currentUser.delete();
+      }
+    } catch {
+      await auth.signOut();
+    }
+
+    switch (error.code) {
+      case 'auth/popup-closed-by-user':
+        setErrors({ general: 'Sign-in was cancelled' });
+        break;
+      case 'auth/popup-blocked':
+        setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
+        break;
+      case 'auth/account-exists-with-different-credential':
+        setErrors({ general: 'An account already exists with this email using a different sign-in method.' });
+        break;
+      default:
+        setErrors({ general: 'Google sign-in failed. Please try again.' });
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div style={styles.pageWrapper}>
@@ -530,19 +673,22 @@ const SignUpPage = () => {
                   style={{
                     ...styles.input(errors.password),
                     ...(focused === "password" ? styles.inputFocused : {}),
+                    opacity: isGoogleAuth ? 0.5 : 1,
                   }}
                   id="password"
                   name="password"
                   type="password"
                   value={formData.password}
                   onChange={handleChange}
-                  onFocus={() => handleFocus("password")}
+                  onFocus={() => !isGoogleAuth && handleFocus("password")}
                   onBlur={handleBlur}
-                  placeholder="Password"
+                  placeholder={isGoogleAuth ? "Password set by Google authentication" : "Password"}
                   minLength={6}
                   aria-invalid={!!errors.password}
                   aria-describedby="password-error"
                   autoComplete="new-password"
+                  disabled={isGoogleAuth}
+                  required
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
