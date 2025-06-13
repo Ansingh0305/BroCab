@@ -1,7 +1,7 @@
 import React, { useState } from "react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../../firebase/config";
 import Navbar from '../Navbar/Navbar';
-
-// Glassmorphic card and input styles matching your main page
 const styles = {
   pageWrapper: {
     minHeight: "100vh",
@@ -175,9 +175,8 @@ const styles = {
       opacity: 0,
     }
   },
-};
 
-
+ };
 
 const Bubbles = () => {
   const bubbleCount = 20;
@@ -215,15 +214,29 @@ const ForgotPasswordPage = () => {
 
   const validateEmail = (email) => /^\S+@\S+\.\S+$/.test(email);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validateEmail(email)) {
-      setError("Please enter a valid email address");
+      setError("Please enter a valid email address.");
       setSent(false);
-    } else {
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
       setError("");
       setSent(true);
-      // Here you would trigger your API call
+    } catch (err) {
+      console.error("Reset error:", err);
+      if (err.code === "auth/user-not-found") {
+        setError("No account found with this email.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Invalid email format.");
+      } else {
+        setError("Something went wrong. Please try again later.");
+      }
+      setSent(false);
     }
   };
 
@@ -233,59 +246,59 @@ const ForgotPasswordPage = () => {
       <div style={styles.container}>
         <Bubbles />
         <form style={styles.card} onSubmit={handleSubmit} autoComplete="off">
-        <div style={styles.title}>Forgot Password?</div>
-        <div style={styles.subtitle}>
-          Enter your email and we'll send you a reset link.
-        </div>
-        <div style={styles.inputGroup}>
-          <label style={styles.label} htmlFor="email">Email</label>
-          <input
-            style={{
-              ...styles.input,
-              ...(focused ? styles.inputFocused : {}),
-              borderColor: error ? "#e53e3e" : (focused ? "#6366f1" : "transparent"),
-            }}
-            id="email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setError(""); setSent(false); }}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder="you@example.com"
-            aria-invalid={!!error}
-            aria-describedby="forgot-error"
-          />
-          {error && <div style={styles.errorText} id="forgot-error">{error}</div>}
-        </div>
-        {sent && (
-          <div style={styles.successText}>
-            If an account exists for this email, a reset link has been sent.
+          <div style={styles.title}>Forgot Password?</div>
+          <div style={styles.subtitle}>
+            Enter your email and we'll send you a reset link.
           </div>
-        )}
-        <button
-          type="submit"
-          style={{
-            ...styles.submitButton,
-            ...(btnHover ? styles.submitButtonHover : {}),
-          }}
-          onMouseEnter={() => setBtnHover(true)}
-          onMouseLeave={() => setBtnHover(false)}
-        >
-          Send Reset Link
-        </button>
-        <a
-          href="/login"
-          style={{
-            ...styles.loginLink,
-            ...(loginHover ? styles.loginLinkHover : {}),
-          }}
-          onMouseEnter={() => setLoginHover(true)}
-          onMouseLeave={() => setLoginHover(false)}
-        >
-          Back to Login
-        </a>
-      </form>
+          <div style={styles.inputGroup}>
+            <label style={styles.label} htmlFor="email">Email</label>
+            <input
+              style={{
+                ...styles.input,
+                ...(focused ? styles.inputFocused : {}),
+                borderColor: error ? "#e53e3e" : (focused ? "#6366f1" : "transparent"),
+              }}
+              id="email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(""); setSent(false); }}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder="you@example.com"
+              aria-invalid={!!error}
+              aria-describedby="forgot-error"
+            />
+            {error && <div style={styles.errorText} id="forgot-error">{error}</div>}
+          </div>
+          {sent && (
+            <div style={styles.successText}>
+              ✅ If an account exists for this email, a reset link has been sent.
+            </div>
+          )}
+          <button
+            type="submit"
+            style={{
+              ...styles.submitButton,
+              ...(btnHover ? styles.submitButtonHover : {}),
+            }}
+            onMouseEnter={() => setBtnHover(true)}
+            onMouseLeave={() => setBtnHover(false)}
+          >
+            Send Reset Link
+          </button>
+          <a
+            href="/login"
+            style={{
+              ...styles.loginLink,
+              ...(loginHover ? styles.loginLinkHover : {}),
+            }}
+            onMouseEnter={() => setLoginHover(true)}
+            onMouseLeave={() => setLoginHover(false)}
+          >
+            Back to Login
+          </a>
+        </form>
       </div>
     </div>
   );
