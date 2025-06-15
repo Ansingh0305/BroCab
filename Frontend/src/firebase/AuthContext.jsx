@@ -165,12 +165,13 @@ export function AuthProvider({ children }) {
         body: JSON.stringify(userData),
       });
 
-      if (!response.ok) {
+      // Accept both 200 (user exists) and 201 (created) as success
+      if (response.status === 200 || response.status === 201) {
+        return await response.json();
+      } else {
         const error = await response.json().catch(() => ({ error: "Network error" }));
         throw new Error(error.error || `HTTP error! status: ${response.status}`);
       }
-
-      return await response.json();
     } catch (error) {
       console.error("Error creating user profile:", error);
       throw error;

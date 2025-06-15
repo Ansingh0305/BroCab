@@ -3,6 +3,8 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../firebase/AuthContext";
 import { getAuth, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { db } from '../../firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
 
 import Navbar from '../Navbar/Navbar';
 
@@ -374,6 +376,14 @@ const SignUpPage = () => {
         // Regular email/password signup
         const userCredential = await signup(formData.email, formData.password, formData.name);
         await createUserProfile(userData, userCredential);
+        // --- Firestore user doc creation ---
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          gender: formData.gender || '',
+          createdAt: new Date().toISOString()
+        });
         // Only navigate after both signup and profile creation succeed
         navigate("/login");
       }
