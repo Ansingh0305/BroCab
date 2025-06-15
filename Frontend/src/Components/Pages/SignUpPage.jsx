@@ -2,11 +2,9 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../firebase/AuthContext";
-import { getAuth } from 'firebase/auth';
+import { getAuth, fetchSignInMethodsForEmail } from 'firebase/auth';
 
 import Navbar from '../Navbar/Navbar';
-
-
 
 // --- Styles ---
 const styles = {
@@ -219,6 +217,8 @@ const UserIcon = () => (
 const SignUpPage = () => {
   const navigate = useNavigate();
   const { signup, createUserProfile, signInWithGoogle } = useAuth();
+  const auth = getAuth();
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -230,6 +230,7 @@ const SignUpPage = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [slideIn, setSlideIn] = useState(false);
+  
   React.useEffect(() => {
     setTimeout(() => setSlideIn(true), 10);
   }, []);
@@ -243,6 +244,19 @@ const SignUpPage = () => {
   const [focused, setFocused] = useState("");
   const [touched, setTouched] = useState({});
   const [btnHover, setBtnHover] = useState(false);
+
+  // Helper function to check if email exists
+  const checkEmailExists = async (email) => {
+    try {
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+      return signInMethods.length > 0;
+    } catch (error) {
+      console.error('Error checking email existence:', error);
+      // If there's an error checking, we'll let the signup attempt proceed
+      // The actual signup will catch the duplicate email error
+      return false;
+    }
+  };
 
   // --- Validation ---
   const validateForm = () => {
@@ -280,45 +294,40 @@ const SignUpPage = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    // Clear general error when user makes changes
+    if (errors.general) setErrors((prev) => ({ ...prev, general: "" }));
   };
 
   const handleBlur = async (e) => {
     setFocused("");
     setTouched({ ...touched, [e.target.name]: true });
     const field = e.target.name;
-    const fieldError = validateForm({ ...formData, [field]: formData[field] });
+    
+    // Basic field validation
+    const fieldErrors = validateForm();
     
     // Check email existence when email field is blurred
-    if (field === 'email' && formData.email && !fieldError.email) {
+    if (field === 'email' && formData.email && !fieldErrors.email) {
       try {
-        const response = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email: formData.email })
-        });
-
-        let data = null;
-        if (response.headers.get('content-type')?.includes('application/json')) {
-          try {
-            data = await response.json();
-          } catch (error) {
-            console.error('Failed to parse response:', error);
-          }
-        }
-
-        if (response.status === 409 || (data && data.exists)) {
-          fieldError.email = "An account with this email already exists";
-          setTouched(prev => ({ ...prev, email: true })); // Ensure error is shown
+        const emailExists = await checkEmailExists(formData.email);
+        if (emailExists) {
+          setErrors(prev => ({ 
+            ...prev, 
+            email: "This email is already registered. Please login or use a different email address.",
+            general: "An account already exists with this email. You can login to your account instead."
+          }));
+          return;
         }
       } catch (error) {
         console.error('Email check error:', error);
-        fieldError.email = "Failed to verify email. Please try again.";
+        // Don't show error to user here, let the signup process handle it
       }
     }
     
-    setErrors({ ...errors, [field]: fieldError[field] });
+    // Set field-specific error
+    if (fieldErrors[field]) {
+      setErrors(prev => ({ ...prev, [field]: fieldErrors[field] }));
+    }
   };
 
   const handleFocus = (field) => setFocused(field);
@@ -337,34 +346,16 @@ const SignUpPage = () => {
     }
 
     try {
-      try {
-        // First check if email exists
-        const checkEmailResponse = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email: formData.email })
+      // Check if email exists before attempting signup
+      const emailExists = await checkEmailExists(formData.email);
+      if (emailExists) {
+        setErrors({ 
+          email: "An account with this email already exists. Please login instead.",
+          general: "This email is already registered. You can login to your account or use a different email."
         });
-
-        let emailData = null;
-        if (checkEmailResponse.headers.get('content-type')?.includes('application/json')) {
-          try {
-            emailData = await checkEmailResponse.json();
-          } catch (error) {
-            console.error('Failed to parse email check response:', error);
-          }
-        }
-        
-        if (checkEmailResponse.status === 409 || (emailData && emailData.exists)) {
-          setErrors({ email: "An account with this email already exists" });
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        console.error('Email check error:', error);
-        setErrors({ general: "Failed to verify email. Please try again." });
         setLoading(false);
+        // Redirect to login after showing the message
+        setTimeout(() => navigate('/login'), 2000);
         return;
       }
 
@@ -383,6 +374,7 @@ const SignUpPage = () => {
         // Regular email/password signup
         const userCredential = await signup(formData.email, formData.password, formData.name);
         await createUserProfile(userData, userCredential);
+        // Only navigate after both signup and profile creation succeed
         navigate("/login");
       }
     } catch (error) {
@@ -391,20 +383,38 @@ const SignUpPage = () => {
         // Firebase Auth errors
         switch (error.code) {
           case "auth/email-already-in-use":
-            setErrors({ email: "An account with this email already exists" });
+            setErrors({ 
+              email: "An account with this email already exists",
+              general: "This email is already registered. Please login or use a different email address."
+            });
+            setTimeout(() => navigate('/login'), 2000);
             break;
           case "auth/invalid-email":
-            setErrors({ email: "Invalid email address" });
+            setErrors({ 
+              email: "Invalid email address format",
+              general: "Please enter a valid email address."
+            });
             break;
           case "auth/weak-password":
-            setErrors({ password: "Password is too weak" });
+            setErrors({ 
+              password: "Password is too weak. It should be at least 6 characters long.",
+              general: "Please choose a stronger password."
+            });
+            break;
+          case "auth/network-request-failed":
+            setErrors({ 
+              general: "Network error. Please check your internet connection and try again."
+            });
             break;
           default:
+            console.error('Unhandled signup error:', error);
             setErrors({ general: "Signup failed. Please try again." });
         }
       } else {
         // API or other errors
-        setErrors({ general: error.message || "Signup failed. Please try again." });
+        setErrors({ 
+          general: error.message || "Signup failed. Please try again."
+        });
       }
     } finally {
       setLoading(false);
@@ -412,99 +422,98 @@ const SignUpPage = () => {
   };
 
   // Google Sign-In Handler
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrors({});
 
-const handleGoogleSignIn = async () => {
-  setLoading(true);
-  setErrors({});
-  const auth = getAuth();
-
-  try {
-    const result = await signInWithGoogle();
-    const userEmail = result.user.email;
-
-    // Check if email exists in backend
     try {
-      const response = await fetch(`https://brocab.onrender.com/api/v1/user/check-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: userEmail })
-      });
+      const result = await signInWithGoogle();
+      const userEmail = result.user.email;
 
-      let data = null;
-      if (response.headers.get('content-type')?.includes('application/json')) {
-        data = await response.json();
-      }
-
-      if (response.status === 409 || (data && data.exists === true)) {
-        // Clean up Firebase auth
+      // Check if email exists
+      const emailExists = await checkEmailExists(userEmail);
+      
+      if (emailExists) {
+        // Email exists, clean up Firebase auth
         try {
           await result.user.delete();
-        } catch {
-          await auth.signOut();
+        } catch (deleteError) {
+          console.error('Error deleting user:', deleteError);
+          try {
+            await auth.signOut();
+          } catch (signOutError) {
+            console.error('Error signing out:', signOutError);
+          }
         }
 
-        setErrors({ general: "An account with this email already exists. Please log in instead." });
-        navigate('/login');
+        setErrors({ 
+          email: "This email is already registered",
+          general: "An account with this email already exists. Please log in instead."
+        });
+        setTimeout(() => navigate('/login'), 2000);
         return;
       }
+
+      // Email doesn't exist, prefill form
+      setFormData(prev => ({
+        ...prev,
+        name: result.user.displayName || result.user.email.split('@')[0],
+        email: result.user.email,
+        password: '', // Don't store token
+      }));
+
+      setIsGoogleAuth(true);
+      setTouched({
+        name: true,
+        email: true,
+        phone: false,
+        gender: false
+      });
+      
+      // Focus on phone input
+      setTimeout(() => {
+        phoneRef.current?.focus();
+      }, 100);
+
     } catch (error) {
-      console.error('Email check error:', error);
+      console.error('Google sign-in error:', error);
+      
+      // Clean up auth state on error
       try {
-        await result.user.delete();
-      } catch {
-        await auth.signOut();
+        if (auth.currentUser) {
+          await auth.currentUser.delete();
+        }
+      } catch (deleteError) {
+        try {
+          await auth.signOut();
+        } catch (signOutError) {
+          console.error('Error signing out:', signOutError);
+        }
       }
-      setErrors({ general: "Failed to verify email. Please try again." });
-      return;
-    }
 
-    // Email doesn't exist, prefill form
-    setFormData(prev => ({
-      ...prev,
-      name: result.user.displayName || result.user.email.split('@')[0],
-      email: result.user.email,
-      password: '', // Don't store token
-    }));
-
-    setIsGoogleAuth(true);
-    setTouched({
-      name: true,
-      email: true,
-      phone: false,
-      gender: false
-    });
-    phoneRef.current?.focus();
-
-  } catch (error) {
-    console.error('Google sign-in error:', error);
-    try {
-      if (auth.currentUser) {
-        await auth.currentUser.delete();
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+          setErrors({ general: 'Sign-in was cancelled' });
+          break;
+        case 'auth/popup-blocked':
+          setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
+          break;
+        case 'auth/account-exists-with-different-credential':
+          setErrors({ 
+            general: 'An account already exists with this email using a different sign-in method. Please try logging in with your email and password instead.' 
+          });
+          setTimeout(() => navigate('/login'), 2000);
+          break;
+        case 'auth/cancelled-popup-request':
+          // User cancelled, no need to show error
+          break;
+        default:
+          setErrors({ general: 'Google sign-in failed. Please try again.' });
       }
-    } catch {
-      await auth.signOut();
+    } finally {
+      setLoading(false);
     }
-
-    switch (error.code) {
-      case 'auth/popup-closed-by-user':
-        setErrors({ general: 'Sign-in was cancelled' });
-        break;
-      case 'auth/popup-blocked':
-        setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
-        break;
-      case 'auth/account-exists-with-different-credential':
-        setErrors({ general: 'An account already exists with this email using a different sign-in method.' });
-        break;
-      default:
-        setErrors({ general: 'Google sign-in failed. Please try again.' });
-    }
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <div style={styles.pageWrapper}>
@@ -548,13 +557,15 @@ const handleGoogleSignIn = async () => {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                border: '2px solid #e2e8f0',
+                borderWidth: '2px',
+                borderStyle: 'solid',
+                borderColor: loading ? '#e2e8f0' : '#e2e8f0',
                 borderRadius: '12px',
                 background: 'white',
                 color: '#374151',
                 fontSize: '14px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.3s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -562,9 +573,22 @@ const handleGoogleSignIn = async () => {
                 gap: '12px',
                 marginBottom: '20px',
                 opacity: loading ? 0.7 : 1,
+                boxShadow: loading ? 'none' : undefined,
               }}
               onClick={handleGoogleSignIn}
               disabled={loading}
+              onMouseOver={e => {
+                if (!loading) {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.15)';
+                }
+              }}
+              onMouseOut={e => {
+                if (!loading) {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
             >
               <svg style={{ width: '18px', height: '18px', flexShrink: 0 }} viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -572,7 +596,7 @@ const handleGoogleSignIn = async () => {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Continue with Google
+              {loading ? 'Checking...' : 'Continue with Google'}
             </button>
 
             {/* Divider */}
@@ -601,10 +625,23 @@ const handleGoogleSignIn = async () => {
 
             <form onSubmit={handleSubmit} autoComplete="off">
               {errors.general && (
-                <div style={{ color: "#e53e3e", marginBottom: 8 }}>
-                  {errors.general}
+                <div style={{ 
+                  color: "#e53e3e", 
+                  marginBottom: "12px",
+                  padding: "12px",
+                  backgroundColor: "rgba(229, 62, 62, 0.1)",
+                  borderRadius: "8px",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                  border: "1px solid rgba(229, 62, 62, 0.2)"
+                }}>
+                  <span style={{ fontSize: "16px", marginTop: "1px" }}>⚠️</span>
+                  <span>{errors.general}</span>
                 </div>
               )}
+              
               <div style={styles.inputGroup}>
                 <input
                   ref={nameRef}
@@ -623,6 +660,7 @@ const handleGoogleSignIn = async () => {
                   aria-invalid={!!errors.name}
                   aria-describedby="name-error"
                   autoComplete="off"
+                  disabled={loading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -636,6 +674,7 @@ const handleGoogleSignIn = async () => {
                   </div>
                 )}
               </div>
+              
               <div style={styles.inputGroup}>
                 <input
                   ref={emailRef}
@@ -654,6 +693,7 @@ const handleGoogleSignIn = async () => {
                   aria-invalid={!!errors.email}
                   aria-describedby="email-error"
                   autoComplete="off"
+                  disabled={loading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -667,6 +707,7 @@ const handleGoogleSignIn = async () => {
                   </div>
                 )}
               </div>
+              
               <div style={styles.inputGroup}>
                 <input
                   ref={passwordRef}
@@ -687,8 +728,8 @@ const handleGoogleSignIn = async () => {
                   aria-invalid={!!errors.password}
                   aria-describedby="password-error"
                   autoComplete="new-password"
-                  disabled={isGoogleAuth}
-                  required
+                  disabled={isGoogleAuth || loading}
+                  required={!isGoogleAuth}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -702,6 +743,7 @@ const handleGoogleSignIn = async () => {
                   </div>
                 )}
               </div>
+              
               <div style={styles.inputGroup}>
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <span
@@ -729,7 +771,6 @@ const handleGoogleSignIn = async () => {
                       ...styles.input(errors.phone),
                       borderRadius: "0 12px 12px 0",
                       borderLeft: "none",
-
                       flex: 1,
                       ...(focused === "phone" ? styles.inputFocused : {}),
                     }}
@@ -748,6 +789,7 @@ const handleGoogleSignIn = async () => {
                     aria-invalid={!!errors.phone}
                     aria-describedby="phone-error"
                     autoComplete="off"
+                    disabled={loading}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -762,6 +804,7 @@ const handleGoogleSignIn = async () => {
                   </div>
                 )}
               </div>
+              
               <div style={styles.inputGroup}>
                 <select
                   ref={genderRef}
@@ -778,6 +821,7 @@ const handleGoogleSignIn = async () => {
                   aria-invalid={!!errors.gender}
                   aria-describedby="gender-error"
                   required
+                  disabled={loading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -789,56 +833,62 @@ const handleGoogleSignIn = async () => {
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </select>
-                {touched.gender && errors.gender && (
+                                {touched.gender && errors.gender && (
                   <div style={styles.errorText} id="gender-error">
                     {errors.gender}
                   </div>
                 )}
               </div>
+
               <button
                 type="submit"
                 style={{
-                  ...styles.signupButton,
-                  ...(btnHover ? styles.signupButtonHover : {}),
+                  marginTop: '12px',
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '12px',
+                  backgroundColor: '#7c3aed',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.3s ease',
                   opacity: loading ? 0.7 : 1,
-                  cursor: loading ? "not-allowed" : "pointer",
                 }}
-                onMouseEnter={() => setBtnHover(true)}
-                onMouseLeave={() => setBtnHover(false)}
-                aria-label="Sign Up"
                 disabled={loading}
-              >
-                {loading ? "Creating Account..." : "Sign Up"}
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.signupButton,
-                  background: "#e5e5e5",
-                  color: "#333",
-                  marginTop: 8,
+                onMouseOver={(e) => {
+                  if (!loading) e.currentTarget.style.backgroundColor = '#6d28d9';
                 }}
-                onClick={() => navigate("/")}
-                aria-label="Back to Dashboard"
+                onMouseOut={(e) => {
+                  if (!loading) e.currentTarget.style.backgroundColor = '#7c3aed';
+                }}
               >
-                Back
+                {loading ? 'Creating account...' : 'Sign Up'}
               </button>
             </form>
+
+            <p style={{ marginTop: '20px', fontSize: '14px', color: '#64748b' }}>
+              Already have an account?{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/login');
+                }}
+                style={{
+                  color: '#7c3aed',
+                  textDecoration: 'none',
+                  fontWeight: '500',
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseOut={(e) => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                Log in
+              </a>
+            </p>
           </div>
-          <div style={styles.rightPanel}>
-            <div style={styles.rightPanelContent}>
-              <div style={styles.featureCard}>
-                <div style={styles.featureIcon}>
-                  <UserIcon />
-                </div>
-                <h3 style={styles.featureTitle}>Join the Community</h3>
-                <p style={styles.featureText}>
-                  Connect with fellow students, share costs, reduce your carbon
-                  footprint, and make new friends on your journey...
-                </p>
-              </div>
-            </div>
-          </div>
+          <div style={styles.rightPanel}></div>
         </div>
       </div>
     </div>

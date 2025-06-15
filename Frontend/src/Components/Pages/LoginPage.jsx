@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../firebase/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config'; // Make sure to import your firestore db
 import Navbar from '../Navbar/Navbar';
+
 const styles = {
   pageWrapper: {
     minHeight: "100vh",
@@ -209,33 +212,63 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { login, signInWithGoogle, createUserProfile } = useAuth();
 
+  // Function to check if user exists in Firestore
+  const checkUserExists = async (uid) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      return userDoc.exists();
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
 
     try {
-      await login(email, password);
+      const userCredential = await login(email, password);
+      
+      // Check if user profile exists in Firestore
+      const userExists = await checkUserExists(userCredential.user.uid);
+      
+      if (!userExists) {
+        // User authenticated with Firebase but no profile exists
+        setErrors({ 
+          general: 'This email is not registered with us. Please sign up first to create an account.' 
+        });
+        // Sign out the user since they shouldn't be logged in
+        await userCredential.user.auth.signOut();
+        return;
+      }
+      
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
       switch (error.code) {
         case 'auth/user-not-found':
-          setErrors({ email: 'No account found with this email' });
+          setErrors({ email: 'No account exists with this email. Please sign up first.' });
           break;
         case 'auth/wrong-password':
-          setErrors({ password: 'Incorrect password' });
+          setErrors({ password: 'Incorrect password. Please try again.' });
           break;
         case 'auth/invalid-email':
-          setErrors({ email: 'Invalid email address' });
+          setErrors({ email: 'Invalid email format. Please check and try again.' });
           break;
         case 'auth/user-disabled':
-          setErrors({ general: 'This account has been disabled' });
+          setErrors({ general: 'This account has been disabled. Please contact support.' });
           break;
         case 'auth/too-many-requests':
-          setErrors({ general: 'Too many failed attempts. Please try again later' });
+          setErrors({ general: 'Too many failed attempts. Please try again later.' });
+          break;
+        case 'auth/invalid-credential':
+        case 'auth/invalid-login-credentials':
+          setErrors({ general: 'Invalid email or password. Please check your credentials or email does not exist.' });
           break;
         default:
+          console.error('Unhandled login error:', error);
           setErrors({ general: 'Login failed. Please try again.' });
       }
     } finally {
@@ -250,21 +283,17 @@ const LoginForm = () => {
     try {
       const result = await signInWithGoogle();
       
-      // For existing users, Google sign-in should work directly
-      // For new users, create user profile with available data
-      const userData = {
-        name: result.user.displayName || result.user.email.split('@')[0],
-        email: result.user.email,
-        phone: '', // Google doesn't provide phone by default
-        gender: undefined
-      };
-
-      // Try to create user profile (will handle existing users gracefully)
-      try {
-        await createUserProfile(userData, result);
-      } catch (profileError) {
-        // If user already exists, that's fine - continue to dashboard
-        console.log('User profile might already exist:', profileError);
+      // Check if user profile exists in Firestore
+      const userExists = await checkUserExists(result.user.uid);
+      
+      if (!userExists) {
+        // User authenticated with Google but no profile exists in our system
+        setErrors({ 
+          general: 'This Google account is not registered with us. Please sign up first using this Google account.' 
+        });
+        // Sign out the user since they shouldn't be logged in
+        await result.user.auth.signOut();
+        return;
       }
       
       navigate('/dashboard');
@@ -349,7 +378,18 @@ const LoginForm = () => {
 
       <form onSubmit={handleSubmit}>
         {errors.general && (
-          <div style={{ color: '#e53e3e', marginBottom: '15px', fontSize: '14px' }}>
+          <div style={{ 
+            color: '#e53e3e', 
+            marginBottom: '15px',
+            padding: '10px',
+            backgroundColor: 'rgba(229, 62, 62, 0.1)',
+            borderRadius: '8px',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '16px' }}>⚠️</span>
             {errors.general}
           </div>
         )}
