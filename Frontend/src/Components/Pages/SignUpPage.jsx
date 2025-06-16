@@ -439,28 +439,26 @@ const SignUpPage = () => {
     try {
       const result = await signInWithGoogle();
       const userEmail = result.user.email;
+      const isNewUser = result?.additionalUserInfo?.isNewUser;
 
-      // Check if email exists
-      const emailExists = await checkEmailExists(userEmail);
-      
-      if (emailExists) {
-        // Email exists, clean up Firebase auth
+      if (!isNewUser) {
+        // Email already registered, clean up Firebase auth and show error (do NOT log in)
         try {
-          await result.user.delete();
+          // await result.user.delete();
         } catch (deleteError) {
-          console.error('Error deleting user:', deleteError);
-          try {
-            await auth.signOut();
-          } catch (signOutError) {
-            console.error('Error signing out:', signOutError);
-          }
+          // Ignore error, proceed to signOut
         }
-
-        setErrors({ 
+        // Always sign out to clear session
+        try {
+          await auth.signOut();
+        } catch (signOutError) {
+          console.error('Error signing out:', signOutError);
+        }
+        setErrors({
           email: "This email is already registered",
           general: "An account with this email already exists. Please log in instead."
         });
-        setTimeout(() => navigate('/login'), 2000);
+        setTimeout(() => navigate('/login'), 3000);
         return;
       }
 
@@ -479,16 +477,11 @@ const SignUpPage = () => {
         phone: false,
         gender: false
       });
-      
       // Focus on phone input
       setTimeout(() => {
         phoneRef.current?.focus();
       }, 100);
-
     } catch (error) {
-      console.error('Google sign-in error:', error);
-      
-      // Clean up auth state on error
       try {
         if (auth.currentUser) {
           await auth.currentUser.delete();
@@ -500,7 +493,6 @@ const SignUpPage = () => {
           console.error('Error signing out:', signOutError);
         }
       }
-
       switch (error.code) {
         case 'auth/popup-closed-by-user':
           setErrors({ general: 'Sign-in was cancelled' });
@@ -515,7 +507,6 @@ const SignUpPage = () => {
           setTimeout(() => navigate('/login'), 2000);
           break;
         case 'auth/cancelled-popup-request':
-          // User cancelled, no need to show error
           break;
         default:
           setErrors({ general: 'Google sign-in failed. Please try again.' });
@@ -733,7 +724,7 @@ const SignUpPage = () => {
                   onChange={handleChange}
                   onFocus={() => !isGoogleAuth && handleFocus("password")}
                   onBlur={handleBlur}
-                  placeholder={isGoogleAuth ? "Password aleady set by Google authentication" : "Password"}
+                  placeholder={isGoogleAuth ? "Password set by Google authentication" : "Password"}
                   minLength={6}
                   aria-invalid={!!errors.password}
                   aria-describedby="password-error"
