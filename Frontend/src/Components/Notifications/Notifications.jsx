@@ -124,10 +124,10 @@ const Notifications = () => {
     const title = notification.title?.toLowerCase() || '';
     const type = notification.type || '';
     
-    if (title.includes('join request') || title.includes('wants to join')) {
+   if (title.includes('accepted') || title.includes('approved')) {
+  window.location.href = '/privileges';}
+  else if (title.includes('join request') || title.includes('wants to join')) {
       window.location.href = '/my-rides';
-    } else if (title.includes('accepted') || title.includes('approved')) {
-      window.location.href = '/my-booked-rides';
     } else if (title.includes('rejected') || type === 'request_rejected') {
       window.location.href = '/requested';
     } else if (type === 'ride_cancelled' || title.includes('cancelled')) {
@@ -200,24 +200,7 @@ const Notifications = () => {
           <span className="bcMyRides-results-count">
             {notifications.length} notifications
           </span>
-          <button 
-            onClick={fetchNotifications} 
-            className="bcMyRides-refresh-btn"
-            style={{
-              background: 'none',
-              border: '1px solid #6366f1',
-              color: '#6366f1',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              marginLeft: 'auto'
-            }}
-          >
-            🔄 Refresh
-          </button>
         </div>
-
         <div className="bcMyRides-content-wrapper">
           {notifications.length === 0 ? (
             <div className="bcMyRides-no-rides">

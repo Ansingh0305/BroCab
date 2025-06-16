@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../firebase/AuthContext';
 import Navbar from '../Navbar/Navbar';
@@ -19,10 +19,11 @@ const PostRide = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, fetchUserDetails, getIdToken } = useAuth();
-  
+  const postFormRef = useRef();
+
   // Get initial data from dashboard if available
   const initialData = location.state || {};
-  
+
   const [formData, setFormData] = useState({
     pickup: initialData.pickup || '',
     destination: initialData.destination || '',
@@ -50,6 +51,16 @@ const PostRide = () => {
   const [loadingSuggestions, setLoadingSuggestions] = useState({
     pickup: false,
     destination: false
+  });
+
+  // Involvement check state
+  const [dateInvolvement, setDateInvolvement] = useState({
+    checked: false,
+    hasRide: false,
+    loading: false,
+    error: '',
+    cleared: false,
+    autoPost: false
   });
 
   useEffect(() => {
@@ -81,38 +92,21 @@ const PostRide = () => {
   // BEST FREE API - Photon (Ultra Precise)
   const getPhotonLocations = async (query) => {
     if (query.length < 2) return [];
-    
     try {
       // Photon API with Indian coordinates for better results
       const response = await fetch(
         `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=8&lang=en&lon=77.2090&lat=28.6139&zoom=12`
       );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      
       return data.features.map(feature => {
         const props = feature.properties;
         let displayName = '';
-        
-        // Build comprehensive display name
         if (props.name) displayName += props.name;
-        if (props.street && props.street !== props.name) {
-          displayName += displayName ? `, ${props.street}` : props.street;
-        }
-        if (props.city && props.city !== props.name) {
-          displayName += displayName ? `, ${props.city}` : props.city;
-        }
-        if (props.state) {
-          displayName += displayName ? `, ${props.state}` : props.state;
-        }
-        if (props.country) {
-          displayName += displayName ? `, ${props.country}` : props.country;
-        }
-        
+        if (props.street && props.street !== props.name) displayName += displayName ? `, ${props.street}` : props.street;
+        if (props.city && props.city !== props.name) displayName += displayName ? `, ${props.city}` : props.city;
+        if (props.state) displayName += displayName ? `, ${props.state}` : props.state;
+        if (props.country) displayName += displayName ? `, ${props.country}` : props.country;
         return {
           display_name: displayName || 'Unknown Location',
           lat: feature.geometry.coordinates[1],
@@ -122,17 +116,13 @@ const PostRide = () => {
           source: 'photon'
         };
       }).filter(location => location.display_name !== 'Unknown Location');
-      
     } catch (error) {
-      console.error('Error fetching Photon locations:', error);
-      
       // Fallback to Nominatim if Photon fails
       try {
         const fallbackResponse = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5&addressdetails=1`
         );
         const fallbackData = await fallbackResponse.json();
-        
         return fallbackData.map(item => ({
           display_name: item.display_name,
           lat: parseFloat(item.lat),
@@ -142,22 +132,18 @@ const PostRide = () => {
           source: 'nominatim'
         }));
       } catch (fallbackError) {
-        console.error('Fallback API also failed:', fallbackError);
         return [];
       }
     }
   };
 
-  // Debounced search function
   const debouncedLocationSearch = useCallback(
     debounce(async (query, fieldName) => {
       if (query.length > 1) {
-        // Set loading state
         setLoadingSuggestions(prev => ({
           ...prev,
           [fieldName]: true
         }));
-        
         const locationSuggestions = await getPhotonLocations(query);
         setSuggestions(prev => ({
           ...prev,
@@ -167,8 +153,6 @@ const PostRide = () => {
           ...prev,
           [fieldName]: true
         }));
-        
-        // Remove loading state
         setLoadingSuggestions(prev => ({
           ...prev,
           [fieldName]: false
@@ -189,14 +173,23 @@ const PostRide = () => {
       ...prev,
       [name]: value
     }));
-    
     // Trigger location search for pickup and destination
     if (name === 'pickup' || name === 'destination') {
       debouncedLocationSearch(value, name);
     }
-    
     if (error) setError('');
     if (success) setSuccess(false);
+    // If date is changed, reset involvement check
+    if (name === 'date') {
+      setDateInvolvement({
+        checked: false,
+        hasRide: false,
+        loading: false,
+        error: '',
+        cleared: false,
+        autoPost: false
+      });
+    }
   };
 
   // Handle suggestion selection
@@ -216,10 +209,69 @@ const PostRide = () => {
     const handleClickOutside = () => {
       setShowSuggestions({ pickup: false, destination: false });
     };
-
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  // Check involvement on date change
+  useEffect(() => {
+    if (!formData.date) return;
+    setDateInvolvement(prev => ({ ...prev, checked: false, loading: true, error: '', cleared: false, autoPost: false }));
+    const check = async () => {
+      try {
+        const token = await getIdToken();
+        const resp = await fetch(`https://brocab.onrender.com/user/check-involvement/${formData.date}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!resp.ok) throw new Error('Failed to check ride involvement');
+        const data = await resp.json();
+        // API returns { involved: true/false }
+        setDateInvolvement({
+          checked: true,
+          hasRide: data.involved === true,
+          loading: false,
+          error: '',
+          cleared: false,
+          autoPost: false
+        });
+      } catch (err) {
+        setDateInvolvement({
+          checked: true,
+          hasRide: false,
+          loading: false,
+          error: 'Could not check ride status',
+          cleared: false,
+          autoPost: false
+        });
+      }
+    };
+    check();
+    // eslint-disable-next-line
+  }, [formData.date, getIdToken]);
+
+  // Handler for clearing all rides on that date
+  const handleClearInvolvement = async () => {
+    setDateInvolvement(prev => ({ ...prev, loading: true, error: '' }));
+    try {
+      const token = await getIdToken();
+      const resp = await fetch(`https://brocab.onrender.com/user/clear-involvement/${formData.date}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!resp.ok) throw new Error('Failed to clear rides for this date');
+      setDateInvolvement(prev => ({ ...prev, hasRide: false, cleared: true, loading: false, autoPost: true }));
+    } catch (err) {
+      setDateInvolvement(prev => ({ ...prev, loading: false, error: 'Could not clear rides. Try again.' }));
+    }
+  };
+
+  // Auto-post the ride after clearing involvement
+  useEffect(() => {
+    if (dateInvolvement.autoPost && postFormRef.current) {
+      postFormRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      setDateInvolvement(prev => ({ ...prev, autoPost: false }));
+    }
+  }, [dateInvolvement.autoPost]);
 
   const validateForm = () => {
     if (!formData.pickup.trim()) {
@@ -251,7 +303,7 @@ const PostRide = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!currentUser) {
       alert("You must log in before posting a ride.");
       navigate("/login");
@@ -262,12 +314,18 @@ const PostRide = () => {
       return;
     }
 
+    // If involvement is checked and hasRide, do not submit
+    if (dateInvolvement.checked && dateInvolvement.hasRide && !dateInvolvement.cleared) {
+      setError('You already have a ride on this date. Please clear it first.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const token = await getIdToken();
-      
+
       const rideData = {
         origin: formData.pickup.trim(),
         destination: formData.destination.trim(),
@@ -290,14 +348,12 @@ const PostRide = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to post ride");
+        throw new Error(errorData.message || "Failed to post the ride because there is already a ride scheduled for the same day.");
       }
 
       const result = await response.json();
-      console.log('Ride posted successfully:', result);
-      
       setSuccess(true);
-      
+
       // Reset form
       setFormData({
         pickup: '',
@@ -313,9 +369,7 @@ const PostRide = () => {
       setTimeout(() => {
         navigate('/my-rides');
       }, 2000);
-
     } catch (error) {
-      console.error('Error posting ride:', error);
       setError(error.message || 'Failed to post ride. Please try again.');
     } finally {
       setLoading(false);
@@ -346,7 +400,7 @@ const PostRide = () => {
   return (
     <div className="bcPostRide-container" style={{ backgroundImage: `url(${BACKGROUND_IMAGE})` }}>
       <Navbar />
-      
+
       <div className="bcPostRide-main-content">
         <div className="bcPostRide-header">
           <h1 className="bcPostRide-title">Post Your Ride</h1>
@@ -374,15 +428,34 @@ const PostRide = () => {
                 </div>
               )}
 
-              {/* Error Message */}
-              {error && (
-                <div className="bcPostRide-error-message">
-                  <span className="bcPostRide-error-icon">❌</span>
-                  <p>{error}</p>
+
+              {/* Involvement warning and clear option */}
+              {dateInvolvement.checked && dateInvolvement.hasRide && !dateInvolvement.cleared && (
+                <div className="bcPostRide-error-message" style={{ background: '#fffbe9', color: '#b45309' }}>
+                  <span>⚠️</span>
+                  <div>
+                    <strong>You already have a ride (posted or joined) on {formData.date}.</strong>
+                    <br />
+                    <button
+                      type="button"
+                      className="bcPostRide-back-btn"
+                      style={{ background: '#f59e0b', color: '#fff', marginTop: 8 }}
+                      onClick={handleClearInvolvement}
+                      disabled={dateInvolvement.loading}
+                    >
+                      {dateInvolvement.loading ? 'Clearing...' : 'Clear All Rides on This Day'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {dateInvolvement.cleared && (
+                <div className="bcPostRide-success-message">
+                  <span>✅</span>
+                  All rides on {formData.date} cleared! Posting your ride...
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="bcPostRide-form">
+              <form onSubmit={handleSubmit} className="bcPostRide-form" ref={postFormRef}>
                 {/* Leader Info */}
                 <div className="bcPostRide-leader-info">
                   <div className="bcPostRide-leader-avatar">
@@ -397,7 +470,6 @@ const PostRide = () => {
                 {/* Route Section with Autocomplete */}
                 <div className="bcPostRide-section">
                   <h3 className="bcPostRide-section-title">📍 Route Information</h3>
-                  
                   <div className="bcPostRide-form-row">
                     {/* Pickup Location with Autocomplete */}
                     <div className="bcPostRide-input-group" onClick={(e) => e.stopPropagation()}>
@@ -415,7 +487,6 @@ const PostRide = () => {
                           required
                           disabled={loading}
                         />
-                        
                         {/* Loading indicator */}
                         {loadingSuggestions.pickup && (
                           <div className="bcPostRide-suggestions-loading">
@@ -423,7 +494,6 @@ const PostRide = () => {
                             <span>Searching...</span>
                           </div>
                         )}
-                        
                         {/* Pickup Suggestions */}
                         {showSuggestions.pickup && suggestions.pickup.length > 0 && !loadingSuggestions.pickup && (
                           <div className="bcPostRide-suggestions-dropdown">
@@ -448,7 +518,6 @@ const PostRide = () => {
                         )}
                       </div>
                     </div>
-
                     {/* Destination with Autocomplete */}
                     <div className="bcPostRide-input-group" onClick={(e) => e.stopPropagation()}>
                       <label className="bcPostRide-label">Destination *</label>
@@ -465,7 +534,6 @@ const PostRide = () => {
                           required
                           disabled={loading}
                         />
-                        
                         {/* Loading indicator */}
                         {loadingSuggestions.destination && (
                           <div className="bcPostRide-suggestions-loading">
@@ -473,7 +541,6 @@ const PostRide = () => {
                             <span>Searching...</span>
                           </div>
                         )}
-                        
                         {/* Destination Suggestions */}
                         {showSuggestions.destination && suggestions.destination.length > 0 && !loadingSuggestions.destination && (
                           <div className="bcPostRide-suggestions-dropdown">
@@ -504,7 +571,6 @@ const PostRide = () => {
                 {/* Date & Time Section */}
                 <div className="bcPostRide-section">
                   <h3 className="bcPostRide-section-title">🕐 Schedule</h3>
-                  
                   <div className="bcPostRide-form-row">
                     <div className="bcPostRide-input-group">
                       <label className="bcPostRide-label">Travel Date *</label>
@@ -522,7 +588,6 @@ const PostRide = () => {
                         />
                       </div>
                     </div>
-
                     <div className="bcPostRide-input-group">
                       <label className="bcPostRide-label">Departure Time *</label>
                       <div className="bcPostRide-input-wrapper">
@@ -545,7 +610,6 @@ const PostRide = () => {
                 {/* Capacity & Price Section */}
                 <div className="bcPostRide-section">
                   <h3 className="bcPostRide-section-title">💰 Pricing & Capacity</h3>
-                  
                   <div className="bcPostRide-form-row">
                     <div className="bcPostRide-input-group">
                       <label className="bcPostRide-label">Available Seats *</label>
@@ -567,7 +631,6 @@ const PostRide = () => {
                         </select>
                       </div>
                     </div>
-
                     <div className="bcPostRide-input-group">
                       <label className="bcPostRide-label">Price per Person (₹) *</label>
                       <div className="bcPostRide-input-wrapper">
@@ -592,7 +655,6 @@ const PostRide = () => {
                 {/* Description Section */}
                 <div className="bcPostRide-section">
                   <h3 className="bcPostRide-section-title">📝 Additional Details</h3>
-                  
                   <div className="bcPostRide-input-group">
                     <label className="bcPostRide-label">Description (Optional)</label>
                     <textarea
@@ -617,7 +679,6 @@ const PostRide = () => {
                   >
                     Back to Dashboard
                   </button>
-                  
                   <button
                     type="submit"
                     className="bcPostRide-submit-btn"
@@ -639,6 +700,13 @@ const PostRide = () => {
                     )}
                   </button>
                 </div>
+                {error && (
+                <div className="bcPostRide-error-message">
+                  <span className="bcPostRide-error-icon">❌</span>
+                  <p>{error}</p>
+                </div>
+              )}
+
               </form>
             </div>
           </div>
@@ -647,33 +715,28 @@ const PostRide = () => {
           <div className="bcPostRide-info-section">
             <div className="bcPostRide-info-container">
               <h3 className="bcPostRide-info-title">Why Post with BroCab?</h3>
-              
               <div className="bcPostRide-info-cards">
                 <div className="bcPostRide-info-card">
                   <div className="bcPostRide-info-icon">💰</div>
                   <h4>Share Costs</h4>
                   <p>Split fuel and toll expenses with fellow travelers</p>
                 </div>
-
                 <div className="bcPostRide-info-card">
                   <div className="bcPostRide-info-icon">🤝</div>
                   <h4>Meet People</h4>
                   <p>Connect with like-minded travelers and make new friends</p>
                 </div>
-
                 <div className="bcPostRide-info-card">
                   <div className="bcPostRide-info-icon">🌍</div>
                   <h4>Help Environment</h4>
                   <p>Reduce carbon footprint by sharing rides</p>
                 </div>
-
                 <div className="bcPostRide-info-card">
                   <div className="bcPostRide-info-icon">🛡️</div>
                   <h4>Safe & Secure</h4>
                   <p>All passengers are verified for your safety</p>
                 </div>
               </div>
-
               <div className="bcPostRide-tips">
                 <h4>💡 Tips for a Great Ride</h4>
                 <ul>

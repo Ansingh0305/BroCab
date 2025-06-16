@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from '../../firebase/AuthContext';
 import { userAPI } from '../../utils/api';
 
+const NAV_BREAKPOINT = 1036;
+
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -12,27 +14,29 @@ const Navbar = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= NAV_BREAKPOINT);
 
-  // GLOBAL STATE MANAGEMENT FOR BADGE
   useEffect(() => {
-    // Check localStorage for permanent badge clear flag
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= NAV_BREAKPOINT);
+      if (window.innerWidth > NAV_BREAKPOINT) setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     const permanentClear = localStorage.getItem('notificationBadgePermanentlyClear');
     const lastClearTime = localStorage.getItem('notificationLastClearTime');
-    
     if (permanentClear === 'true') {
-      console.log('🔥 PERMANENT CLEAR FLAG ACTIVE - Badge stays at 0');
       setUnreadCount(0);
       return;
     }
-
-    // If recently cleared (within 5 minutes), keep at 0
     if (lastClearTime && (Date.now() - parseInt(lastClearTime)) < 300000) {
-      console.log('🔥 RECENTLY CLEARED - Badge stays at 0');
       setUnreadCount(0);
       return;
     }
-
-    // Only fetch if user exists and not on notification page
     if (currentUser && location.pathname !== '/notifications') {
       fetchUnreadCount();
     } else if (location.pathname === '/notifications') {
@@ -40,46 +44,33 @@ const Navbar = () => {
     }
   }, [currentUser, location.pathname]);
 
-  // FORCE CLEAR ON NOTIFICATIONS PAGE
   useEffect(() => {
     if (location.pathname === '/notifications') {
-      console.log('🔥 ON NOTIFICATIONS PAGE - FORCE CLEARING BADGE');
       setUnreadCount(0);
-      
-      // Set permanent clear flag
       localStorage.setItem('notificationBadgePermanentlyClear', 'true');
       localStorage.setItem('notificationLastClearTime', Date.now().toString());
-      
-      // Dispatch global event
       window.dispatchEvent(new CustomEvent('notificationBadgeCleared', { 
         detail: { cleared: true, timestamp: Date.now() } 
       }));
     }
   }, [location.pathname]);
 
-  // LISTEN FOR GLOBAL BADGE CLEAR EVENTS
   useEffect(() => {
-    const handleBadgeClear = (event) => {
-      console.log('🔥 RECEIVED BADGE CLEAR EVENT');
+    const handleBadgeClear = () => {
       setUnreadCount(0);
       localStorage.setItem('notificationBadgePermanentlyClear', 'true');
       localStorage.setItem('notificationLastClearTime', Date.now().toString());
     };
-
     const handlePageVisibility = () => {
       if (!document.hidden && location.pathname === '/notifications') {
         setUnreadCount(0);
         localStorage.setItem('notificationBadgePermanentlyClear', 'true');
       }
     };
-
-    // Add event listeners
     window.addEventListener('notificationBadgeCleared', handleBadgeClear);
     window.addEventListener('notificationsViewed', handleBadgeClear);
     window.addEventListener('notificationCleared', handleBadgeClear);
     document.addEventListener('visibilitychange', handlePageVisibility);
-
-    // Cleanup
     return () => {
       window.removeEventListener('notificationBadgeCleared', handleBadgeClear);
       window.removeEventListener('notificationsViewed', handleBadgeClear);
@@ -94,87 +85,57 @@ const Navbar = () => {
         try {
           const userData = await fetchUserDetails();
           setUserName(userData?.name || 'User');
-        } catch (error) {
-          console.error("Failed to fetch user details:", error);
+        } catch {
           setUserName('User');
         }
       }
     };
-    
     fetchUserName();
   }, [currentUser, fetchUserDetails]);
   
   const fetchUnreadCount = async () => {
     if (!currentUser) return;
-    
-    // NEVER fetch if permanent clear flag is set
     const permanentClear = localStorage.getItem('notificationBadgePermanentlyClear');
     if (permanentClear === 'true') {
       setUnreadCount(0);
       return;
     }
-    
-    // Don't fetch if on notifications page
     if (location.pathname === '/notifications') {
       setUnreadCount(0);
       return;
     }
-    
     try {
-      console.log('🔥 FETCHING UNREAD COUNT...');
       const data = await userAPI.getUnreadCount();
       const count = data.unread_count || 0;
-      
-      // Only set count if permanent clear flag is not set
       if (permanentClear !== 'true') {
         setUnreadCount(count);
-        console.log('🔥 Fetched unread count:', count);
       } else {
         setUnreadCount(0);
-        console.log('🔥 PERMANENT CLEAR ACTIVE - keeping at 0');
       }
-    } catch (error) {
-      console.error("Failed to fetch notification count:", error);
+    } catch {
       setUnreadCount(0);
     }
   };
 
   const handleNotificationClick = async () => {
     if (isLoading) return;
-    
-    console.log('🔥 NOTIFICATION BUTTON CLICKED - PERMANENT CLEAR');
     setIsLoading(true);
-    
-    // PERMANENT CLEAR
     setUnreadCount(0);
-    
-    // Set permanent clear flags
     localStorage.setItem('notificationBadgePermanentlyClear', 'true');
     localStorage.setItem('notificationLastClearTime', Date.now().toString());
-    
-    // Dispatch global events to all navbar instances
     window.dispatchEvent(new CustomEvent('notificationBadgeCleared', { 
       detail: { cleared: true, timestamp: Date.now() } 
     }));
     window.dispatchEvent(new CustomEvent('notificationsViewed'));
     window.dispatchEvent(new CustomEvent('notificationCleared'));
-    
     try {
-      // Navigate immediately
       navigate('/notifications');
-      
-      // Background API call
       setTimeout(async () => {
         try {
           await userAPI.markAllNotificationsAsRead();
-          console.log('🔥 Successfully marked all notifications as read');
-        } catch (apiError) {
-          console.error("API call failed:", apiError);
-        }
+        } catch {}
       }, 100);
-      
-    } catch (error) {
-      console.error("Navigation failed:", error);
+    } catch {
       navigate('/notifications');
     } finally {
       setIsLoading(false);
@@ -182,13 +143,10 @@ const Navbar = () => {
   };
 
   const handleBrandClick = () => {
-    // Only reset permanent clear flag after 10 minutes
     const lastClearTime = localStorage.getItem('notificationLastClearTime');
     if (lastClearTime && (Date.now() - parseInt(lastClearTime)) > 600000) {
       localStorage.removeItem('notificationBadgePermanentlyClear');
-      console.log('🔥 PERMANENT CLEAR FLAG EXPIRED - allowing new notifications');
     }
-    
     if (location.pathname === '/dashboard') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -196,7 +154,6 @@ const Navbar = () => {
     }
   };
 
-  // Rest of your existing methods...
   const handleUpdateProfile = () => {
     navigate('/update-profile');
     setShowDropdown(false);
@@ -214,19 +171,16 @@ const Navbar = () => {
 
   const handleSignOut = async () => {
     if (isLoading) return;
-    
     setIsLoading(true);
-    
     try {
       await logout();
       setShowDropdown(false);
-      localStorage.clear(); // This will clear all notification flags too
+      localStorage.clear();
       sessionStorage.clear();
       setUserName(null);
       setUnreadCount(0);
       navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
+    } catch {
       setShowDropdown(false);
       navigate('/login');
     } finally {
@@ -234,138 +188,222 @@ const Navbar = () => {
     }
   };
 
-  const handleMouseEnter = () => {
-    setShowDropdown(true);
-  };
+  const handleMouseEnter = () => setShowDropdown(true);
+  const handleMouseLeave = () => setTimeout(() => setShowDropdown(false), 150);
 
-  const handleMouseLeave = () => {
-    setTimeout(() => {
-      setShowDropdown(false);
-    }, 150);
-  };
-
-  // RENDER - Never show badge if permanent clear flag is set or on notifications page
   const shouldShowBadge = unreadCount > 0 && 
-                         location.pathname !== '/notifications' && 
-                         localStorage.getItem('notificationBadgePermanentlyClear') !== 'true';
+    location.pathname !== '/notifications' && 
+    localStorage.getItem('notificationBadgePermanentlyClear') !== 'true';
+
+  // Nav links for reuse in mobile drawer
+  const navLinks = (
+    <>
+      <button 
+        onClick={() => {navigate('/my-booked-rides'); setIsMobileMenuOpen(false);}} 
+        className="bcDash-nav-link bcDash-nav-button"
+        disabled={isLoading}
+      >
+        My Bookings
+      </button>
+      <button 
+        onClick={() => {navigate('/privileges'); setIsMobileMenuOpen(false);}}
+        className="bcDash-nav-link bcDash-nav-button"
+        disabled={isLoading}
+      >
+        My Privilege
+      </button>
+      <button 
+        onClick={() => {handleNotificationClick(); setIsMobileMenuOpen(false);}}
+        className="bcDash-nav-link bcDash-nav-button notification-btn"
+        disabled={isLoading}
+      >
+        Notifications
+        {shouldShowBadge && (
+          <span className="notification-badge">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+      <button 
+        onClick={() => {navigate('/my-rides'); setIsMobileMenuOpen(false);}} 
+        className="bcDash-nav-link bcDash-nav-button"
+        disabled={isLoading}
+      >
+        My Rides
+      </button>
+      <button 
+        onClick={() => {navigate('/contact-us'); setIsMobileMenuOpen(false);}} 
+        className="bcDash-contact-btn"
+        disabled={isLoading}
+      >
+        Contact Us
+      </button>
+    </>
+  );
 
   return (
-    <nav className="bcDash-navbar">
-      <div 
-        className="bcDash-nav-brand" 
-        onClick={handleBrandClick}
-        style={{ cursor: 'pointer' }}
-      >
-        BroCab
-      </div>
-      
-      <div className="bcDash-nav-links">
-        <button 
-          onClick={() => navigate('/my-booked-rides')} 
-          className="bcDash-nav-link bcDash-nav-button"
-          disabled={isLoading}
-        >
-          My Bookings
-        </button>
-        <button 
-          onClick={() => navigate('/privileges')}
-          className="bcDash-nav-link bcDash-nav-button"
-          disabled={isLoading}
-        >
-          My Privilege
-        </button>
-        <button 
-          onClick={handleNotificationClick}
-          className="bcDash-nav-link bcDash-nav-button notification-btn"
-          disabled={isLoading}
-        >
-          Notifications
-          {shouldShowBadge && (
-            <span className="notification-badge">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
-        <button 
-          onClick={() => navigate('/my-rides')} 
-          className="bcDash-nav-link bcDash-nav-button"
-          disabled={isLoading}
-        >
-          My Rides
-        </button>
-      </div>
-      
-      <div className="bcDash-nav-auth">
-        {currentUser ? (
-          <>
-            <button 
-              onClick={() => navigate('/contact-us')} 
-              className="bcDash-contact-btn"
-              disabled={isLoading}
-            >
-              Contact Us
-            </button>
-            <div 
-              className="bcDash-user-dropdown-wrapper"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <div className="bcDash-profile-icon">
-                <span className="bcDash-profile-initial">
-                  {userName ? userName.charAt(0).toUpperCase() : 'U'}
-                </span>
-              </div>
-              {showDropdown && (
-                <div 
-                  className="bcDash-user-dropdown"
-                  onMouseEnter={() => setShowDropdown(true)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <button 
-                    onClick={handleRequested} 
-                    className="bcDash-dropdown-item"
-                    disabled={isLoading}
-                  >
-                    Requested
-                  </button>
-                  <button 
-                    onClick={handleUpdateProfile} 
-                    className="bcDash-dropdown-item"
-                    disabled={isLoading}
-                  >
-                    Update Profile
-                  </button>
-                  <button 
-                    onClick={handleSignOut} 
-                    className="bcDash-dropdown-item"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Signing Out...' : 'Sign Out'}
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <button 
-              className="bcDash-login-btn" 
-              onClick={() => navigate('/login')}
-              disabled={isLoading}
-            >
-              Login
-            </button>
-            <button 
-              className="bcDash-signup-btn" 
-              onClick={() => navigate('/signup')}
-              disabled={isLoading}
-            >
-              Signup
-            </button>
-          </>
+    <>
+      <nav className="bcDash-navbar">
+        {/* Hamburger for mobile/tablet (left) */}
+        {isMobile && (
+          <button
+            className={`bcDash-hamburger${isMobileMenuOpen ? ' open' : ''}`}
+            aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         )}
-      </div>
-    </nav>
+
+        <div 
+          className="bcDash-nav-brand" 
+          onClick={handleBrandClick}
+          tabIndex={0}
+          aria-label="Go to Dashboard"
+        >
+          BroCab
+        </div>
+
+        {/* Desktop nav links - only visible above 1036px */}
+        {!isMobile && (
+          <div className="bcDash-nav-links">
+            <button 
+              onClick={() => navigate('/my-booked-rides')} 
+              className="bcDash-nav-link bcDash-nav-button"
+              disabled={isLoading}
+            >
+              My Bookings
+            </button>
+            <button 
+              onClick={() => navigate('/privileges')}
+              className="bcDash-nav-link bcDash-nav-button"
+              disabled={isLoading}
+            >
+              My Privilege
+            </button>
+            <button 
+              onClick={handleNotificationClick}
+              className="bcDash-nav-link bcDash-nav-button notification-btn"
+              disabled={isLoading}
+            >
+              Notifications
+              {shouldShowBadge && (
+                <span className="notification-badge">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => navigate('/my-rides')} 
+              className="bcDash-nav-link bcDash-nav-button"
+              disabled={isLoading}
+            >
+              My Rides
+            </button>
+          </div>
+        )}
+
+        <div className="bcDash-nav-auth">
+          {currentUser ? (
+            <>
+              {!isMobile && (
+                <button 
+                  onClick={() => navigate('/contact-us')} 
+                  className="bcDash-contact-btn"
+                  disabled={isLoading}
+                >
+                  Contact Us
+                </button>
+              )}
+              <div 
+                className="bcDash-user-dropdown-wrapper"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div className="bcDash-profile-icon">
+                  <span className="bcDash-profile-initial">
+                    {userName ? userName.charAt(0).toUpperCase() : 'U'}
+                  </span>
+                </div>
+                {showDropdown && (
+                  <div 
+                    className="bcDash-user-dropdown"
+                    onMouseEnter={() => setShowDropdown(true)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    <button 
+                      onClick={handleRequested} 
+                      className="bcDash-dropdown-item"
+                      disabled={isLoading}
+                    >
+                      Requested
+                    </button>
+                    <button 
+                      onClick={handleUpdateProfile} 
+                      className="bcDash-dropdown-item"
+                      disabled={isLoading}
+                    >
+                      Update Profile
+                    </button>
+                    <button 
+                      onClick={handleSignOut} 
+                      className="bcDash-dropdown-item"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Signing Out...' : 'Sign Out'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <button 
+                className="bcDash-login-btn" 
+                onClick={() => navigate('/login')}
+                disabled={isLoading}
+              >
+                Login
+              </button>
+              <button 
+                className="bcDash-signup-btn" 
+                onClick={() => navigate('/signup')}
+                disabled={isLoading}
+              >
+                Signup
+              </button>
+            </>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile nav drawer */}
+      {isMobile && (
+        <>
+          <div className={`bcDash-mobile-menu${isMobileMenuOpen ? ' open' : ''}`}>
+            <button 
+              className="bcDash-mobile-close" 
+              aria-label="Close navigation menu" 
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              &times;
+            </button>
+            <div className="bcDash-mobile-links">
+              {navLinks}
+            </div>
+          </div>
+          {isMobileMenuOpen && (
+            <div 
+              className="bcDash-mobile-overlay" 
+              onClick={() => setIsMobileMenuOpen(false)} 
+            />
+          )}
+        </>
+      )}
+    </>
   );
 };
 

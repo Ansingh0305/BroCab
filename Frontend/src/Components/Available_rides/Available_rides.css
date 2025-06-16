@@ -1,18 +1,45 @@
+:root {
+  /* Color system */
+  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --primary: #6366f1;
+  --primary-dark: #5856eb;
+  --accent: #fbbf24;
+  --success: #10b981;
+  --danger: #ef4444;
+  --surface: #fff;
+  --surface-glass: rgba(255,255,255,0.95);
+  --surface-glass-strong: rgba(255,255,255,0.9);
+  --surface-glass-modal: rgba(255,255,255,0.1);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-strong: 0 8px 24px rgba(0,0,0,0.10);
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-sm: 8px;
+  --transition: all 0.3s cubic-bezier(.4,0,.2,1);
+  --focus-outline: 2px solid var(--primary);
+  --modal-z: 1000;
+}
+
 /* Main Container */
 .bcRides-container {
   min-height: 100vh;
   width: 100%;
-  position: relative;
+  background: var(--primary-gradient);
   background-size: cover;
-  background-position: center center;
+  background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
   display: flex;
   flex-direction: column;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #1e293b;
+  color: var(--text-main);
+  contain: layout paint;
 }
 
+/* Main Content */
 .bcRides-main-content {
   flex: 1;
   padding: 20px;
@@ -20,15 +47,58 @@
   margin: 0 auto;
   width: 100%;
 }
+/* Default desktop/tablet styles */
+.bcRides-swap-btn {
+  background: #f8fafc;
+  border: 2px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--primary, #6366f1);
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 2px;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.04);
+}
+
+/* Mobile fix: shrink and align swap icon */
+@media (max-width: 769px) {
+  .bcRides-search-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bcRides-swap-btn {
+    width: 40px;
+    height: 40px;
+    align-self: center;
+    margin: 8px 0;
+    order: 2; /* Place after the first input */
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .bcRides-swap-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    margin: 8px auto;
+  }
+}
 
 /* Search Section */
 .bcRides-search-section {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--surface-glass);
   backdrop-filter: blur(8px);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow);
+  contain: layout paint;
 }
 
 .bcRides-trip-type {
@@ -47,13 +117,13 @@
 .bcRides-radio-option input[type="radio"] {
   width: 20px;
   height: 20px;
-  accent-color: #6366f1;
+  accent-color: var(--primary);
 }
 
 .bcRides-radio-label {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .bcRides-search-form {
@@ -78,7 +148,7 @@
 .bcRides-input-label {
   font-size: 14px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -86,24 +156,26 @@
 .bcRides-location-input,
 .bcRides-date-input {
   padding: 14px 16px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border);
   border-radius: 12px;
   font-size: 16px;
   font-weight: 500;
-  background: white;
-  transition: all 0.3s;
+  background: var(--surface);
+  transition: var(--transition);
   outline: none;
+  box-shadow: 0 1px 4px rgba(99,102,241,0.02);
 }
 
 .bcRides-location-input:focus,
 .bcRides-date-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  outline: none;
 }
 
 .bcRides-swap-btn {
   background: #f8fafc;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border);
   border-radius: 12px;
   width: 48px;
   height: 48px;
@@ -111,39 +183,45 @@
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  color: #6366f1;
+  color: var(--primary);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: var(--transition);
   margin-bottom: 2px;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.04);
 }
 
-.bcRides-swap-btn:hover {
-  background: #6366f1;
+.bcRides-swap-btn:hover,
+.bcRides-swap-btn:focus-visible {
+  background: var(--primary);
   color: white;
   transform: rotate(180deg);
-  border-color: #6366f1;
+  border-color: var(--primary);
+  outline: var(--focus-outline);
 }
 
 .bcRides-search-btn {
   padding: 14px 28px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--primary-gradient);
   color: white;
   border: none;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: var(--transition);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
   height: 48px;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.08);
 }
 
-.bcRides-search-btn:hover {
-  background: linear-gradient(135deg, #5856eb 0%, #7c3aed 100%);
+.bcRides-search-btn:hover,
+.bcRides-search-btn:focus-visible {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #7c3aed 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
+  outline: var(--focus-outline);
 }
 
 /* Results Info */
@@ -154,8 +232,8 @@
 .bcRides-results-count {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
-  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-main);
+  background: var(--surface-glass-strong);
   padding: 12px 20px;
   border-radius: 12px;
   backdrop-filter: blur(4px);
@@ -169,21 +247,25 @@
   gap: 16px;
 }
 
+/* Ride Card */
 .bcRides-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--surface-glass);
   backdrop-filter: blur(8px);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: var(--transition);
+  contain: layout paint;
 }
 
-.bcRides-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+.bcRides-card:hover,
+.bcRides-clickable:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-strong);
 }
 
+/* Card Content Layout */
 .bcRides-card-content {
   display: grid;
   grid-template-columns: 2fr 1.5fr 1fr;
@@ -208,12 +290,12 @@
 .bcRides-arrival-time {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .bcRides-duration {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 500;
   padding: 4px 8px;
   background: #f1f5f9;
@@ -222,7 +304,7 @@
 
 .bcRides-route-text {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -236,7 +318,7 @@
 .bcRides-vehicle-type {
   font-size: 14px;
   font-weight: 600;
-  color: #6366f1;
+  color: var(--primary);
   background: rgba(99, 102, 241, 0.1);
   padding: 4px 8px;
   border-radius: 6px;
@@ -268,7 +350,7 @@
 
 .bcRides-seat-icon.filled {
   opacity: 1;
-  color: #6366f1;
+  color: var(--primary);
 }
 
 .bcRides-seat-icon.empty {
@@ -287,34 +369,38 @@
 .bcRides-price {
   font-size: 24px;
   font-weight: 900;
-  color: #6366f1;
+  color: var(--primary);
 }
 
 .bcRides-book-btn {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--primary-gradient);
   color: white;
   border: none;
   border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: var(--transition);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   min-width: 120px;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.08);
 }
 
-.bcRides-book-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5856eb 0%, #7c3aed 100%);
+.bcRides-book-btn:hover:not(:disabled),
+.bcRides-book-btn:focus-visible {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #7c3aed 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
+  outline: var(--focus-outline);
 }
 
 .bcRides-book-btn:disabled {
   background: #94a3b8;
   cursor: not-allowed;
   transform: none;
+  opacity: 0.7;
 }
 
 /* Loading State */
@@ -331,7 +417,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid rgba(99, 102, 241, 0.2);
-  border-left: 4px solid #6366f1;
+  border-left: 4px solid var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -344,7 +430,7 @@
 .bcRides-loading p {
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 /* Error and No Rides States */
@@ -352,9 +438,9 @@
 .bcRides-no-rides {
   text-align: center;
   padding: 60px 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-glass-strong);
   backdrop-filter: blur(6px);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   margin: 40px auto;
   max-width: 500px;
 }
@@ -368,31 +454,33 @@
 .bcRides-no-rides h3 {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin-bottom: 12px;
 }
 
 .bcRides-error p,
 .bcRides-no-rides p {
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 24px;
   line-height: 1.6;
 }
 
 .bcRides-back-btn {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: var(--primary-gradient);
   color: white;
   border: none;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: var(--transition);
 }
 
-.bcRides-back-btn:hover {
-  background: linear-gradient(135deg, #5856eb 0%, #7c3aed 100%);
+.bcRides-back-btn:hover,
+.bcRides-back-btn:focus-visible {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #7c3aed 100%);
   transform: translateY(-2px);
+  outline: var(--focus-outline);
 }
 
 /* Make ride cards clickable */
@@ -402,7 +490,7 @@
 }
 
 .bcRides-clickable:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2px) scale(1.01);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
@@ -419,7 +507,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--modal-z);
   animation: fadeIn 0.3s ease;
 }
 
@@ -431,7 +519,7 @@
 /* Modal Content */
 .bcRides-modal-content {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
@@ -439,6 +527,7 @@
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
   position: relative;
+  contain: layout paint;
 }
 
 @keyframes slideUp {
@@ -483,8 +572,10 @@
   transition: background 0.2s ease;
 }
 
-.bcRides-modal-close:hover {
+.bcRides-modal-close:hover,
+.bcRides-modal-close:focus-visible {
   background: rgba(255, 255, 255, 0.3);
+  outline: var(--focus-outline);
 }
 
 /* Modal Body */
@@ -507,7 +598,7 @@
 
 /* Journey Information */
 .bcRides-modal-journey {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-glass-modal);
   border-radius: 15px;
   padding: 25px;
   backdrop-filter: blur(10px);
@@ -589,7 +680,7 @@
 }
 
 .bcRides-modal-price {
-  color: #fbbf24;
+  color: var(--accent);
   font-size: 18px;
 }
 
@@ -603,7 +694,7 @@
 .bcRides-modal-participant {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-glass-modal);
   border-radius: 12px;
   padding: 15px;
   backdrop-filter: blur(10px);
@@ -665,7 +756,7 @@
 
 .bcRides-modal-request-btn {
   flex: 1;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, var(--success), #059669);
   color: white;
   border: none;
   padding: 15px 25px;
@@ -673,17 +764,20 @@
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition);
 }
 
-.bcRides-modal-request-btn:hover:not(:disabled) {
+.bcRides-modal-request-btn:hover:not(:disabled),
+.bcRides-modal-request-btn:focus-visible {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  outline: var(--focus-outline);
 }
 
 .bcRides-modal-request-btn:disabled {
   background: rgba(255, 255, 255, 0.2);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .bcRides-modal-cancel-btn {
@@ -695,11 +789,13 @@
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition);
 }
 
-.bcRides-modal-cancel-btn:hover {
+.bcRides-modal-cancel-btn:hover,
+.bcRides-modal-cancel-btn:focus-visible {
   background: rgba(255, 255, 255, 0.3);
+  outline: var(--focus-outline);
 }
 
 /* Loading in Modal */
@@ -732,7 +828,7 @@
 
 /* Ride Leader Section */
 .bcRides-modal-leader {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-glass-modal);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
@@ -759,80 +855,31 @@
   margin-top: 4px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .bcRides-modal-content {
-    width: 95%;
-    margin: 20px;
-  }
-  
-  .bcRides-modal-details {
-    grid-template-columns: 1fr;
-  }
-  
-  .bcRides-modal-actions {
-    flex-direction: column;
-  }
+/* Responsive Design: Mobile-First Excellence */
+@media (max-width: 1025px) {
+  .bcRides-main-content { max-width: 900px; }
 }
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .bcRides-main-content {
-    padding: 16px;
-  }
-
-  .bcRides-search-inputs {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .bcRides-input-group {
-    min-width: auto;
-  }
-
-  .bcRides-swap-btn {
-    width: 100%;
-    height: 48px;
-    transform: rotate(90deg);
-  }
-
-  .bcRides-swap-btn:hover {
-    transform: rotate(270deg);
-  }
-
-  .bcRides-card-content {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .bcRides-price-book {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .bcRides-book-btn {
-    min-width: auto;
-  }
+@media (max-width: 769px) {
+  .bcRides-main-content { padding: 16px; }
+  .bcRides-search-inputs { flex-direction: column; align-items: stretch; }
+  .bcRides-input-group { min-width: auto; }
+  .bcRides-swap-btn { width: 100%; height: 48px; transform: rotate(90deg); }
+  .bcRides-swap-btn:hover { transform: rotate(270deg); }
+  .bcRides-card-content { grid-template-columns: 1fr; gap: 16px; }
+  .bcRides-price-book { flex-direction: row; justify-content: space-between; align-items: center; }
+  .bcRides-book-btn { min-width: auto; }
+  .bcRides-modal-content { width: 95%; margin: 20px; }
+  .bcRides-modal-details { grid-template-columns: 1fr; }
+  .bcRides-modal-actions { flex-direction: column; }
 }
-
 @media (max-width: 480px) {
-  .bcRides-search-section {
-    padding: 16px;
-  }
+  .bcRides-search-section { padding: 16px; }
+  .bcRides-card { padding: 16px; }
+  .bcRides-time-info { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .bcRides-trip-type { flex-direction: column; gap: 12px; }
+  .bcRides-modal-body { padding: 16px; }
+}
 
-  .bcRides-card {
-    padding: 16px;
-  }
-
-  .bcRides-time-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .bcRides-trip-type {
-    flex-direction: column;
-    gap: 12px;
-  }
+@media (hover: none) and (pointer: coarse) {
+  .bcRides-book-btn, .bcRides-modal-request-btn { min-height: 44px; }
 }

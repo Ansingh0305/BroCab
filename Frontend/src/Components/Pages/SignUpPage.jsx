@@ -733,7 +733,7 @@ const SignUpPage = () => {
                   onChange={handleChange}
                   onFocus={() => !isGoogleAuth && handleFocus("password")}
                   onBlur={handleBlur}
-                  placeholder={isGoogleAuth ? "Password set by Google authentication" : "Password"}
+                  placeholder={isGoogleAuth ? "Password aleady set by Google authentication" : "Password"}
                   minLength={6}
                   aria-invalid={!!errors.password}
                   aria-describedby="password-error"

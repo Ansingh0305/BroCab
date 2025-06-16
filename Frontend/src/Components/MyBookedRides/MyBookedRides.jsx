@@ -227,21 +227,6 @@ const MyBookedRides = () => {
                       {/* Vehicle and Status Info */}
                       <div className="bcMyRides-vehicle-details">
                         <span className="bcMyRides-vehicle-type">Booked</span>
-                        <div className="bcMyRides-seats-display">
-                          <span className="bcMyRides-seats-text">
-                            {((ride?.seats || 4) - 1) - (ride?.seats_filled || 0)} seats available
-                          </span>
-                          <div className="bcMyRides-seats-visual">
-                            {[...Array((ride?.seats || 4) - 1)].map((_, seatIndex) => (
-                              <div 
-                                key={seatIndex} 
-                                className={`bcMyRides-seat-icon ${seatIndex < (ride?.seats_filled || 0) ? 'filled' : 'empty'}`}
-                              >
-                                👤
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       </div>
 
                       {/* Price and Status */}
