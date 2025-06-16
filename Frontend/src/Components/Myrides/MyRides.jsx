@@ -414,7 +414,6 @@ const MyRides = () => {
                       <div className="bcMyRides-time-route">
                         <div className="bcMyRides-time-info">
                           <span className="bcMyRides-departure-time">{formatTime(ride?.time)}</span>
-                          <span className="bcMyRides-duration">~1h 30m</span>
                         </div>
                         <div className="bcMyRides-route-info">
                           <span className="bcMyRides-route-text">
@@ -436,9 +435,6 @@ const MyRides = () => {
                           <div className="bcMyRides-seats-display">
                             <span className="bcMyRides-seats-text">
                               {ride?.seats_filled || 0}/{ride?.seats || 4} seats filled
-                            </span>
-                            <span className="bcMyRides-available-text">
-                              {availableSeats} available
                             </span>
                           </div>
                         </div>

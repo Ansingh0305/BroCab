@@ -13,6 +13,7 @@
   color: #1e293b;
 }
 
+/* Main Content */
 .bcMyRides-main-content {
   flex: 1;
   padding: 20px;
@@ -23,12 +24,12 @@
 
 /* Header Section */
 .bcMyRides-search-section {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255,255,255,0.95);
   backdrop-filter: blur(8px);
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
   text-align: center;
 }
 
@@ -54,33 +55,33 @@
   font-size: 18px;
   font-weight: 700;
   color: #1e293b;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255,255,255,0.9);
   padding: 12px 20px;
   border-radius: 12px;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
-/* My Rides List */
+/* List Wrapper */
 .bcMyRides-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* Ride Card */
 .bcMyRides-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255,255,255,0.95);
   backdrop-filter: blur(8px);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
   transition: all 0.3s;
 }
-
 .bcMyRides-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
 }
 
 .bcMyRides-card-content {
@@ -96,20 +97,17 @@
   flex-direction: column;
   gap: 8px;
 }
-
 .bcMyRides-time-info {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-
 .bcMyRides-departure-time,
 .bcMyRides-arrival-time {
   font-size: 18px;
   font-weight: 700;
   color: #1e293b;
 }
-
 .bcMyRides-duration {
   font-size: 14px;
   color: #64748b;
@@ -118,19 +116,16 @@
   background: #f1f5f9;
   border-radius: 6px;
 }
-
 .bcMyRides-route-info {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .bcMyRides-route-text {
   font-size: 14px;
   color: #64748b;
   font-weight: 500;
 }
-
 .bcMyRides-date {
   font-size: 13px;
   color: #64748b;
@@ -143,13 +138,11 @@
   flex-direction: column;
   gap: 12px;
 }
-
 .bcMyRides-vehicle-details {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
 .bcMyRides-status {
   font-size: 12px;
   font-weight: 600;
@@ -160,37 +153,21 @@
   letter-spacing: 0.5px;
   width: fit-content;
 }
-
 .bcMyRides-seats-display {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-
 .bcMyRides-seats-text {
   font-size: 13px;
   color: #059669;
   font-weight: 600;
 }
-
-.bcMyRides-seats-visual {
-  display: flex;
-  gap: 4px;
-}
-
-.bcMyRides-seat-icon {
-  font-size: 14px;
-  opacity: 0.3;
-}
-
-.bcMyRides-seat-icon.filled {
-  opacity: 1;
-  color: #6366f1;
-}
-
-.bcMyRides-seat-icon.empty {
-  opacity: 0.3;
-  color: #94a3b8;
+.bcMyRides-available-text {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 /* Price and Actions */
@@ -200,34 +177,33 @@
   align-items: flex-end;
   gap: 12px;
 }
-
 .bcMyRides-price-info {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
 }
-
 .bcMyRides-price {
   font-size: 24px;
   font-weight: 900;
   color: #6366f1;
 }
-
 .bcMyRides-price-label {
   font-size: 12px;
   color: #64748b;
   font-weight: 500;
 }
-
 .bcMyRides-action-buttons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.bcMyRides-edit-btn {
+/* Action Buttons */
+.bcMyRides-edit-btn,
+.bcMyRides-delete-btn,
+.bcMyRides-view-btn,
+.bcMyRides-requests-btn {
   padding: 10px 16px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
   border: none;
   border-radius: 8px;
   font-size: 12px;
@@ -237,31 +213,40 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
+.bcMyRides-edit-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
 .bcMyRides-edit-btn:hover {
   background: linear-gradient(135deg, #d97706, #b45309);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 12px rgba(245,158,11,0.3);
 }
-
 .bcMyRides-delete-btn {
-  padding: 10px 16px;
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
-
 .bcMyRides-delete-btn:hover {
   background: linear-gradient(135deg, #dc2626, #b91c1c);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+}
+.bcMyRides-view-btn {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+}
+.bcMyRides-view-btn:hover {
+  background: linear-gradient(135deg, #5856eb, #7c3aed);
+  transform: translateY(-2px);
+}
+.bcMyRides-requests-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+.bcMyRides-requests-btn:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245,158,11,0.3);
 }
 
 /* Loading State */
@@ -273,21 +258,18 @@
   min-height: 40vh;
   gap: 20px;
 }
-
 .bcMyRides-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(99, 102, 241, 0.2);
+  border: 4px solid rgba(99,102,241,0.2);
   border-left: 4px solid #6366f1;
   border-radius: 50%;
   animation: spinMyRides 1s linear infinite;
 }
-
 @keyframes spinMyRides {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
 .bcMyRides-loading p {
   font-size: 18px;
   font-weight: 600;
@@ -299,18 +281,16 @@
 .bcMyRides-no-rides {
   text-align: center;
   padding: 60px 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255,255,255,0.9);
   backdrop-filter: blur(6px);
   border-radius: 20px;
   margin: 40px auto;
   max-width: 500px;
 }
-
 .bcMyRides-no-rides-icon {
   font-size: 64px;
   margin-bottom: 20px;
 }
-
 .bcMyRides-error h2,
 .bcMyRides-no-rides h3 {
   font-size: 24px;
@@ -318,14 +298,12 @@
   color: #1e293b;
   margin-bottom: 12px;
 }
-
 .bcMyRides-error p,
 .bcMyRides-no-rides p {
   color: #64748b;
   margin-bottom: 24px;
   line-height: 1.6;
 }
-
 .bcMyRides-back-btn {
   padding: 12px 24px;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
@@ -336,53 +314,16 @@
   cursor: pointer;
   transition: all 0.3s;
 }
-
 .bcMyRides-back-btn:hover {
   background: linear-gradient(135deg, #5856eb 0%, #7c3aed 100%);
   transform: translateY(-2px);
 }
 
-/* Content Wrapper */
-.bcMyRides-content-wrapper {
-  width: 100%;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .bcMyRides-main-content {
-    padding: 16px;
-  }
-
-  .bcMyRides-card-content {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .bcMyRides-price-actions {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .bcMyRides-action-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .bcMyRides-time-info {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-}
 /* Modal Styles */
 .bcMyRides-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -390,7 +331,6 @@
   z-index: 1000;
   animation: fadeIn 0.3s ease;
 }
-
 .bcMyRides-modal-content {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 20px;
@@ -398,27 +338,24 @@
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 25px 50px rgba(0,0,0,0.3);
   animation: slideUp 0.3s ease;
 }
-
 .bcMyRides-modal-header {
   padding: 25px 30px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.2);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
 .bcMyRides-modal-header h2 {
   color: white;
   font-size: 24px;
   font-weight: 600;
   margin: 0;
 }
-
 .bcMyRides-modal-close {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255,255,255,0.2);
   border: none;
   color: white;
   font-size: 24px;
@@ -431,53 +368,53 @@
   justify-content: center;
   transition: background 0.2s ease;
 }
-
 .bcMyRides-modal-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255,255,255,0.3);
 }
-
 .bcMyRides-modal-body {
   padding: 30px;
 }
-
 .bcMyRides-ride-info {
   color: white;
   margin-bottom: 20px;
   text-align: center;
 }
-
 .bcMyRides-ride-info h3 {
   margin: 0 0 5px 0;
   font-size: 18px;
 }
-
 .bcMyRides-ride-info p {
   margin: 0;
   opacity: 0.8;
 }
 
-.bcMyRides-participants-list {
+/* Participants and Requests List */
+.bcMyRides-participants-list,
+.bcMyRides-requests-list {
   display: flex;
   flex-direction: column;
   gap: 15px;
 }
-
-.bcMyRides-participant-card {
-  background: rgba(255, 255, 255, 0.1);
+.bcMyRides-participant-card,
+.bcMyRides-request-card {
+  background: rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-
-.bcMyRides-participant-info {
+.bcMyRides-request-card {
+  border-left: 4px solid #f59e0b;
+}
+.bcMyRides-participant-info,
+.bcMyRides-request-info {
   display: flex;
   align-items: center;
   gap: 15px;
 }
-
-.bcMyRides-participant-avatar {
+.bcMyRides-participant-avatar,
+.bcMyRides-request-avatar {
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -489,33 +426,39 @@
   font-weight: 600;
   font-size: 18px;
 }
-
-.bcMyRides-participant-details {
+.bcMyRides-request-avatar {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+.bcMyRides-participant-details,
+.bcMyRides-request-details {
   display: flex;
   flex-direction: column;
 }
-
-.bcMyRides-participant-name {
+.bcMyRides-participant-name,
+.bcMyRides-request-name {
   color: white;
   font-weight: 600;
   font-size: 16px;
 }
-
-.bcMyRides-participant-gender {
-  color: rgba(255, 255, 255, 0.8);
+.bcMyRides-participant-gender,
+.bcMyRides-request-gender {
+  color: rgba(255,255,255,0.8);
   font-size: 14px;
 }
-
 .bcMyRides-participant-joined {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255,255,255,0.6);
   font-size: 12px;
 }
-
+.bcMyRides-request-status {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.bcMyRides-request-actions,
 .bcMyRides-participant-actions {
   display: flex;
   gap: 8px;
 }
-
 .bcMyRides-approve-btn,
 .bcMyRides-reject-btn,
 .bcMyRides-remove-btn {
@@ -527,39 +470,27 @@
   cursor: pointer;
   transition: all 0.2s;
 }
-
-.bcMyRides-approve-btn {
-  background: #10b981;
+.bcMyRides-approve-btn { background: #10b981; color: white; }
+.bcMyRides-reject-btn { background: #ef4444; color: white; }
+.bcMyRides-remove-btn { background: #f59e0b; color: white; }
+.bcMyRides-status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
   color: white;
-}
-
-.bcMyRides-reject-btn {
-  background: #ef4444;
-  color: white;
-}
-
-.bcMyRides-remove-btn {
-  background: #f59e0b;
-  color: white;
-}
-
-.bcMyRides-view-btn {
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
-  border: none;
-  border-radius: 8px;
   font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
-.bcMyRides-view-btn:hover {
-  background: linear-gradient(135deg, #5856eb, #7c3aed);
-  transform: translateY(-2px);
+.bcMyRides-empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.6;
+}
+.bcMyRides-no-participants {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255,255,255,0.8);
 }
 
 /* Edit Form Styles */
@@ -568,38 +499,32 @@
   flex-direction: column;
   gap: 20px;
 }
-
 .bcMyRides-form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .bcMyRides-form-group label {
   color: white;
   font-weight: 600;
   font-size: 14px;
 }
-
 .bcMyRides-form-group input {
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.1);
   color: white;
   font-size: 14px;
 }
-
 .bcMyRides-form-group input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255,255,255,0.6);
 }
-
 .bcMyRides-form-actions {
   display: flex;
   gap: 12px;
   margin-top: 20px;
 }
-
 .bcMyRides-save-btn,
 .bcMyRides-cancel-btn {
   flex: 1;
@@ -610,195 +535,33 @@
   cursor: pointer;
   transition: all 0.2s;
 }
+.bcMyRides-save-btn { background: #10b981; color: white; }
+.bcMyRides-cancel-btn { background: rgba(255,255,255,0.2); color: white; }
 
-.bcMyRides-save-btn {
-  background: #10b981;
-  color: white;
-}
-/* Requests Button */
-.bcMyRides-requests-btn {
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.bcMyRides-requests-btn:hover {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-/* Requests List */
-.bcMyRides-requests-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.bcMyRides-request-card {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-left: 4px solid #f59e0b;
-}
-
-.bcMyRides-request-info {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.bcMyRides-request-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.bcMyRides-request-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.bcMyRides-request-name {
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
-}
-
-.bcMyRides-request-gender {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-}
-
-.bcMyRides-request-status {
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-.bcMyRides-request-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.bcMyRides-status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.bcMyRides-empty-icon {
-  font-size: 48px;
-  margin-bottom: 15px;
-  opacity: 0.6;
-}
-
-.bcMyRides-no-participants {
-  text-align: center;
-  padding: 40px 20px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-/* Update action buttons layout */
-.bcMyRides-action-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .bcMyRides-action-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .bcMyRides-requests-btn,
-  .bcMyRides-view-btn,
-  .bcMyRides-delete-btn {
-    font-size: 11px;
-    padding: 8px 12px;
-  }
-}
-
-
-.bcMyRides-cancel-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-}
-
-.bcMyRides-available-text {
-  font-size: 12px;
-  color: #10b981;
-  font-weight: 600;
-  margin-top: 2px;
-}
-
+/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(50px);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(50px);}
+  to { opacity: 1; transform: translateY(0);}
 }
 
-/* Add this to your existing MyRides.css */
-.bcMyRides-available-text {
-  font-size: 12px;
-  color: #10b981;
-  font-weight: 600;
-  margin-top: 2px;
+/* Responsive Design */
+@media (max-width: 768px) {
+  .bcMyRides-main-content { padding: 16px; }
+  .bcMyRides-card-content { grid-template-columns: 1fr; gap: 16px; }
+  .bcMyRides-price-actions { flex-direction: row; justify-content: space-between; align-items: center; }
+  .bcMyRides-action-buttons { flex-direction: column; gap: 8px; }
+  .bcMyRides-time-info { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .bcMyRides-modal-content { padding: 0; }
 }
-
 @media (max-width: 480px) {
-  .bcMyRides-search-section {
-    padding: 16px;
-  }
-
-  .bcMyRides-card {
-    padding: 16px;
-  }
-
-  .bcMyRides-header-title {
-    font-size: 24px;
-  }
-
-  .bcMyRides-action-buttons {
-    width: 100%;
-  }
-
-  .bcMyRides-edit-btn,
-  .bcMyRides-delete-btn {
-    flex: 1;
-  }
+  .bcMyRides-search-section { padding: 16px; }
+  .bcMyRides-card { padding: 16px; }
+  .bcMyRides-header-title { font-size: 24px; }
+  .bcMyRides-action-buttons { width: 100%; }
+  .bcMyRides-edit-btn, .bcMyRides-delete-btn { flex: 1; }
+  .bcMyRides-modal-body { padding: 16px; }
 }

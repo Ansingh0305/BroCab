@@ -615,14 +615,7 @@ const Available_rides = () => {
                 />
               </div>
 
-              <button 
-                type="button" 
-                onClick={handleSwapLocations}
-                className="bcRides-swap-btn"
-                title="Swap locations"
-              >
-                ⇄
-              </button>
+    
 
               <div className="bcRides-input-group">
                 <label className="bcRides-input-label">To</label>
@@ -696,12 +689,7 @@ const Available_rides = () => {
                           <div className="bcRides-time-route">
                             <div className="bcRides-time-info">
                               <span className="bcRides-departure-time">{formatTime(ride.time)}</span>
-                              <span className="bcRides-duration">
-                                {ride.calculatedDuration || ride.duration || '~2h'}
-                              </span>
-                              <span className="bcRides-arrival-time">
-                                {calculateArrivalTime(ride.time, ride.calculatedDuration || ride.duration)}
-                              </span>
+                              
                             </div>
                             <div className="bcRides-route-info">
                               <span className="bcRides-route-text">
@@ -736,7 +724,7 @@ const Available_rides = () => {
 
                           <div className="bcRides-price-book">
                             <div className="bcRides-price-info">
-                              <span className="bcRides-price">~₹{ride.approxPrice || '0'}</span>
+                              <span className="bcRides-price">₹{ride.approxPrice || '0'}</span>
                               <span className="bcRides-price-label"> approx per person</span>
                             </div>
                             <button 

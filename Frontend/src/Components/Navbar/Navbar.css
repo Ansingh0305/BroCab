@@ -5,7 +5,6 @@
   padding: 20px 40px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
-  /* REMOVED: border-bottom: 1px solid rgba(255, 255, 255, 0.2); */
   position: sticky;
   top: 0;
   z-index: 100;
@@ -211,9 +210,19 @@
   padding: 8px 0;
   min-width: 160px;
   z-index: 1000;
-  margin-top: 8px;
+  margin-top: 4px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   animation: fadeIn 0.2s;
+}
+
+.bcDash-user-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  width: 20px;
+  height: 12px;
+  background: transparent;
 }
 
 @keyframes fadeIn {
@@ -285,7 +294,167 @@
   }
 }
 
-/* Responsive Design for Navbar */
+/* Hamburger styles (only visible on mobile) */
+.bcDash-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-right: 12px;
+  z-index: 120;
+  transition: background 0.2s;
+}
+
+.bcDash-hamburger span {
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin: 4px 0;
+  background: #1e293b;
+  border-radius: 2px;
+  transition: all 0.3s cubic-bezier(.4,0,.2,1);
+}
+
+.bcDash-hamburger.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.bcDash-hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.bcDash-hamburger.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Mobile menu drawer */
+.bcDash-mobile-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 85vw;
+  max-width: 340px;
+  height: 100vh;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  box-shadow: 2px 0 24px rgba(30,41,59,0.14);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 32px 24px 24px 24px;
+  transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+  transform: translateX(-100%);
+}
+
+.bcDash-mobile-menu.open {
+  transform: translateX(0);
+}
+
+.bcDash-mobile-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #1e293b;
+  cursor: pointer;
+  z-index: 210;
+  transition: color 0.2s;
+}
+
+.bcDash-mobile-close:hover {
+  color: #6366f1;
+}
+
+.bcDash-mobile-links {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 40px;
+  width: 100%;
+}
+
+.bcDash-mobile-links .bcDash-nav-link,
+.bcDash-mobile-links .bcDash-contact-btn {
+  width: 100%;
+  text-align: left;
+  font-size: 18px;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  color: #475569;
+  border-radius: 0;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  display: block;
+}
+
+.bcDash-mobile-links .bcDash-nav-link:hover,
+.bcDash-mobile-links .bcDash-contact-btn:hover {
+  background: #f3f4f6;
+  color: #6366f1;
+  transform: translateX(4px) scale(1.01);
+}
+
+/* Overlay for mobile menu */
+.bcDash-mobile-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(30,41,59,0.16);
+  z-index: 150;
+  animation: overlayFadeIn 0.2s;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* RESPONSIVE STYLES - ONLY FOR 1036px AND BELOW */
+@media (max-width: 1036px) {
+  .bcDash-navbar {
+    justify-content: space-between;
+    position: relative;
+    padding: 14px 16px;
+  }
+  
+  .bcDash-hamburger {
+    display: flex;
+    margin-right: 0;
+    margin-left: 0;
+  }
+  
+  .bcDash-nav-brand {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 110;
+  }
+  
+  .bcDash-nav-brand:hover {
+    transform: translateX(-50%) scale(1.02);
+  }
+  
+  .bcDash-nav-profile {
+    margin-left: 0;
+    z-index: 120;
+  }
+  
+  .bcDash-nav-links {
+    display: none;
+  }
+}
+
+/* Responsive Design for Navbar - NO CHANGES ABOVE 1036px */
 @media (max-width: 1024px) {
   .bcDash-navbar {
     padding: 18px 30px;
@@ -295,51 +464,6 @@
   }
 }
 
-@media (max-width: 768px) {
-  .bcDash-navbar {
-    flex-direction: column;
-    gap: 20px;
-    padding: 20px;
-    position: relative;
-  }
-  .bcDash-nav-links {
-    order: 2;
-    gap: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .bcDash-nav-auth {
-    order: 1;
-  }
-  
-  .bcDash-contact-btn {
-    font-size: 14px;
-    padding: 6px 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .bcDash-navbar {
-    padding: 15px;
-  }
-  .bcDash-nav-brand {
-    font-size: 24px;
-  }
-  .bcDash-nav-links {
-    gap: 15px;
-  }
-  .bcDash-nav-link,
-  .bcDash-nav-button,
-  .bcDash-contact-btn {
-    font-size: 14px;
-    padding: 6px 12px;
-  }
-  .bcDash-login-btn,
-  .bcDash-signup-btn {
-    padding: 10px 20px;
-    font-size: 12px;
-  }
-}
 
 /* Focus styles for better accessibility */
 .bcDash-nav-link:focus,
@@ -351,63 +475,6 @@
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }
-/* Update your existing CSS with these changes */
-.bcDash-user-dropdown-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.bcDash-user-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
-  min-width: 160px;
-  z-index: 1000;
-  margin-top: 4px; /* Reduced gap */
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  animation: fadeIn 0.2s;
-}
-
-/* Add this to prevent gap issues */
-.bcDash-user-dropdown::before {
-  content: '';
-  position: absolute;
-  top: -8px;
-  right: 10px;
-  width: 20px;
-  height: 12px;
-  background: transparent;
-}
-
-.bcDash-dropdown-item {
-  width: 100%;
-  padding: 12px 20px;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  transition: background-color 0.2s ease;
-}
-
-.bcDash-dropdown-item:hover {
-  background-color: #f8f9fa;
-}
-
-.bcDash-dropdown-item:last-child {
-  color: #dc3545;
-}
-
-.bcDash-dropdown-item:last-child:hover {
-  background-color: #fff5f5;
-}
-
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
