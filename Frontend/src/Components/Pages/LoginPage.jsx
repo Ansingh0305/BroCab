@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../firebase/AuthContext';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config'; // Make sure to import your firestore db
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import Navbar from '../Navbar/Navbar';
 
 const styles = {
@@ -282,20 +282,39 @@ const LoginForm = () => {
 
     try {
       const result = await signInWithGoogle();
-      
+      const user = result.user;
       // Check if user profile exists in Firestore
-      const userExists = await checkUserExists(result.user.uid);
-      
+      const userExists = await checkUserExists(user.uid);
       if (!userExists) {
-        // User authenticated with Google but no profile exists in our system
-        setErrors({ 
-          general: 'This Google account is not registered with us. Please sign up first using this Google account.' 
+        // If not, create Firestore user doc with Google profile info
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName || '',
+          email: user.email || '',
+          phone: '',
+          gender: '',
+          createdAt: new Date().toISOString()
         });
-        // Sign out the user since they shouldn't be logged in
-        await result.user.auth.signOut();
-        return;
       }
-      
+      // --- Backend user profile check and creation ---
+      // Try to fetch backend user profile
+      let backendProfileOk = false;
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch('https://brocab.onrender.com/user', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) backendProfileOk = true;
+      } catch (e) { backendProfileOk = false; }
+      if (!backendProfileOk) {
+        // Create backend user profile if missing
+        await createUserProfile({
+          name: user.displayName || '',
+          email: user.email || '',
+          phone: '',
+          gender: ''
+        });
+      }
       navigate('/dashboard');
     } catch (error) {
       console.error('Google sign-in error:', error);
