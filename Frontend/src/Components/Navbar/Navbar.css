@@ -464,14 +464,16 @@
   }
 }
 
-
+.bcDash-nav-brand:focus {
+  outline: none;
+  box-shadow: none;
+}
 /* Focus styles for better accessibility */
 .bcDash-nav-link:focus,
 .bcDash-nav-button:focus,
 .bcDash-contact-btn:focus,
 .bcDash-login-btn:focus,
-.bcDash-signup-btn:focus,
-.bcDash-nav-brand:focus {
+.bcDash-signup-btn:focus{
   outline: 2px solid #6366f1;
   outline-offset: 2px;
 }

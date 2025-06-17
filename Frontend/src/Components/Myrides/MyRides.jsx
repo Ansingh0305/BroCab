@@ -487,9 +487,13 @@ const MyRides = () => {
 
             {loadingRequests ? (
               <div className="bcMyRides-modal-loading">
-                <div className="bcMyRides-spinner"></div>
-                <p>Loading join requests...</p>
-              </div>
+    <div className="bcMyRides-dots-loader">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <p>Loading join requests...</p>
+  </div>
             ) : (
               <div className="bcMyRides-modal-body">
                 <div className="bcMyRides-ride-info">
@@ -567,9 +571,9 @@ const MyRides = () => {
 
             {loadingParticipants ? (
               <div className="bcMyRides-modal-loading">
-                <div className="bcMyRides-spinner"></div>
-                <p>Loading participants...</p>
-              </div>
+    <div className="bcMyRides-spinner"></div>
+    <p>Loading participants...</p>
+  </div>
             ) : (
               <div className="bcMyRides-modal-body">
                 <div className="bcMyRides-ride-info">
