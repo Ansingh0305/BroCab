@@ -3,8 +3,6 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../firebase/AuthContext";
 import { getAuth, fetchSignInMethodsForEmail } from 'firebase/auth';
-import { db } from '../../firebase/config';
-import { doc, setDoc } from 'firebase/firestore';
 
 import Navbar from '../Navbar/Navbar';
 
@@ -340,50 +338,31 @@ const SignUpPage = () => {
     setLoading(true);
     setErrors({});
 
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    // Basic validation
+    const fieldErrors = validateForm();
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
       setLoading(false);
       return;
     }
 
     try {
-      // Check if email exists before attempting signup
-      const emailExists = await checkEmailExists(formData.email);
-      if (emailExists) {
-        setErrors({ 
-          email: "An account with this email already exists. Please login instead.",
-          general: "This email is already registered. You can login to your account or use a different email."
-        });
-        setLoading(false);
-        // Redirect to login after showing the message
-        setTimeout(() => navigate('/login'), 2000);
-        return;
-      }
-
       const userData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        gender: formData.gender || undefined
+        gender: formData.gender
       };
 
       if (isGoogleAuth) {
-        // For Google auth, update profile
+        // Google auth flow - user already authenticated
         await createUserProfile(userData);
         navigate("/dashboard");
       } else {
         // Regular email/password signup
         const userCredential = await signup(formData.email, formData.password, formData.name);
         await createUserProfile(userData, userCredential);
-        // --- Firestore user doc creation ---
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          gender: formData.gender || '',
-          createdAt: new Date().toISOString()
-        });
+        // Remove Firestore user doc creation - using backend API only
         // Only navigate after both signup and profile creation succeed
         navigate("/login");
       }
@@ -400,31 +379,25 @@ const SignUpPage = () => {
             setTimeout(() => navigate('/login'), 2000);
             break;
           case "auth/invalid-email":
-            setErrors({ 
-              email: "Invalid email address format",
-              general: "Please enter a valid email address."
-            });
+            setErrors({ email: "Invalid email format" });
             break;
           case "auth/weak-password":
-            setErrors({ 
-              password: "Password is too weak. It should be at least 6 characters long.",
-              general: "Please choose a stronger password."
-            });
-            break;
-          case "auth/network-request-failed":
-            setErrors({ 
-              general: "Network error. Please check your internet connection and try again."
-            });
+            setErrors({ password: "Password is too weak. Please use at least 6 characters." });
             break;
           default:
-            console.error('Unhandled signup error:', error);
             setErrors({ general: "Signup failed. Please try again." });
         }
       } else {
-        // API or other errors
-        setErrors({ 
-          general: error.message || "Signup failed. Please try again."
-        });
+        // Backend API errors
+        if (error.message && error.message.includes('email')) {
+          setErrors({ 
+            email: "This email is already registered",
+            general: "An account with this email already exists. Please login instead."
+          });
+          setTimeout(() => navigate('/login'), 2000);
+        } else {
+          setErrors({ general: error.message || "Signup failed. Please try again." });
+        }
       }
     } finally {
       setLoading(false);
@@ -469,7 +442,6 @@ const SignUpPage = () => {
         email: result.user.email,
         password: '', // Don't store token
       }));
-
       setIsGoogleAuth(true);
       setTouched({
         name: true,
