@@ -330,7 +330,6 @@ const SignUpPage = () => {
     }
 
     try {
-      // Remove the email existence check - let Firebase handle it during signup
       const userData = {
         name: formData.name,
         email: formData.email,
@@ -344,8 +343,14 @@ const SignUpPage = () => {
         navigate("/dashboard");
       } else {
         // Regular email/password signup
+        console.log("Creating Firebase user...");
         const userCredential = await signup(formData.email, formData.password, formData.name);
+        console.log("Firebase user created:", userCredential.user.uid);
+        
+        // Create user profile in backend
+        console.log("Creating backend profile...");
         await createUserProfile(userData, userCredential);
+        
         // --- Firestore user doc creation ---
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           name: formData.name,
@@ -354,6 +359,8 @@ const SignUpPage = () => {
           gender: formData.gender || '',
           createdAt: new Date().toISOString()
         });
+        
+        console.log("User creation completed successfully");
         // Only navigate after both signup and profile creation succeed
         navigate("/login");
       }

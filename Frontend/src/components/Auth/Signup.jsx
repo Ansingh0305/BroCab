@@ -13,6 +13,7 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const { signup, createUserProfile, signInWithGoogle } = useAuth();
 
   const handleChange = (e) => {
@@ -89,6 +90,7 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
+    setSuccessMessage("");
 
     // Validate form
     const validationErrors = validateForm();
@@ -99,12 +101,14 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
     }
 
     try {
-      // Create Firebase user
+      // Create Firebase user first
       const userCredential = await signup(
         formData.email,
         formData.password,
         formData.name
       );
+
+      console.log("Firebase user created:", userCredential.user.uid);
 
       // Create user profile in backend
       const userData = {
@@ -114,21 +118,34 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
         gender: formData.gender || undefined,
       };
 
-      await createUserProfile(userData);
-      onClose(); // Close modal on successful signup
+      try {
+        const profileResult = await createUserProfile(userData, userCredential);
+        console.log("Profile creation result:", profileResult);
+        onClose(); // Close modal on successful signup
+      } catch (profileError) {
+        console.error("Profile creation failed:", profileError);
+        // Show error but don't fail the signup since Firebase account was created
+        setErrors({ 
+          general: "Account created successfully, but profile setup encountered an issue. You can complete your profile later." 
+        });
+        setTimeout(() => onClose(), 3000);
+      }
     } catch (error) {
       console.error("Signup error:", error);
 
       // Handle different Firebase auth errors
       switch (error.code) {
         case "auth/email-already-in-use":
-          setErrors({ email: "An account with this email already exists" });
+          setErrors({ email: "An account with this email already exists. Please try logging in instead." });
           break;
         case "auth/invalid-email":
           setErrors({ email: "Invalid email address" });
           break;
         case "auth/weak-password":
           setErrors({ password: "Password is too weak" });
+          break;
+        case "auth/network-request-failed":
+          setErrors({ general: "Network error. Please check your internet connection and try again." });
           break;
         default:
           setErrors({ general: "Signup failed. Please try again." });

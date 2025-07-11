@@ -129,26 +129,29 @@ export function AuthProvider({ children }) {
     return response;
   };
 
-  // Create user profile in backend
+  // Create user profile in backend with better error handling
   const createUserProfile = async (userData, userCredential = null) => {
     try {
       // If userCredential is provided, get token directly from it
       let token;
       if (userCredential && userCredential.user) {
-        token = await userCredential.user.getIdToken();
+        // Wait a moment for the token to be ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        token = await userCredential.user.getIdToken(true); // Force refresh
       } else {
         token = await getIdToken();
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      } else {
+      if (!token) {
         throw new Error("No authentication token available");
       }
+
+      console.log("Creating user profile with token:", token.substring(0, 20) + "...");
+
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
 
       const response = await fetch("https://brocab.onrender.com/user", {
         method: "POST",
@@ -156,11 +159,24 @@ export function AuthProvider({ children }) {
         body: JSON.stringify(userData),
       });
 
+      console.log("User creation response status:", response.status);
+
       // Accept both 200 (user exists) and 201 (created) as success
       if (response.status === 200 || response.status === 201) {
-        return await response.json();
+        const result = await response.json();
+        console.log("User profile created successfully:", result);
+        return result;
       } else {
-        const error = await response.json().catch(() => ({ error: "Network error" }));
+        const errorText = await response.text();
+        console.error("User creation failed:", response.status, errorText);
+        
+        let error;
+        try {
+          error = JSON.parse(errorText);
+        } catch {
+          error = { error: errorText || "Network error" };
+        }
+        
         throw new Error(error.error || `HTTP error! status: ${response.status}`);
       }
     } catch (error) {
