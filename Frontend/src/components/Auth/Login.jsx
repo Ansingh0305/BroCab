@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../firebase/AuthContext";
 import "./Auth.css";
 
@@ -9,43 +9,7 @@ const Login = ({ onSwitchToSignup, onClose }) => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const { login, signInWithGoogle, handleRedirectResult, createUserProfile } =
-    useAuth();
-
-  useEffect(() => {
-    const handleAuthRedirect = async () => {
-      setLoading(true);
-      try {
-        const result = await handleRedirectResult();
-        if (result && result.user) {
-          // Check if the user is new
-          const isNewUser =
-            result.user.metadata.creationTime ===
-            result.user.metadata.lastSignInTime;
-
-          if (isNewUser) {
-            // Create user profile for new Google users
-            const userDetails = {
-              name: result.user.displayName,
-              email: result.user.email,
-              // Add other details you might want to save
-            };
-            await createUserProfile(userDetails, result);
-          }
-          onClose(); // Close modal on successful login/signup
-        }
-      } catch (error) {
-        console.error("Google sign-in redirect error:", error);
-        setErrors({
-          general: "Google sign-in failed. Please try again.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    handleAuthRedirect();
-  }, [handleRedirectResult, onClose, createUserProfile]);
+  const { login, signInWithGoogle, createUserProfile } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,11 +30,25 @@ const Login = ({ onSwitchToSignup, onClose }) => {
     setLoading(true);
     setErrors({});
     try {
-      await signInWithGoogle();
-      // The redirect will be handled by the useEffect hook
+      const result = await signInWithGoogle();
+      if (result && result.user) {
+        const isNewUser =
+          result.user.metadata.creationTime ===
+          result.user.metadata.lastSignInTime;
+
+        if (isNewUser) {
+          const userDetails = {
+            name: result.user.displayName,
+            email: result.user.email,
+          };
+          await createUserProfile(userDetails, result);
+        }
+        onClose();
+      }
     } catch (error) {
       console.error("Google sign-in error:", error);
       setErrors({ general: "Google sign-in failed. Please try again." });
+    } finally {
       setLoading(false);
     }
   };

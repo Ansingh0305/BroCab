@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../firebase/AuthContext";
 import "./Auth.css";
 
@@ -13,47 +13,7 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const {
-    signup,
-    createUserProfile,
-    signInWithGoogle,
-    handleRedirectResult,
-  } = useAuth();
-
-  useEffect(() => {
-    const handleAuthRedirect = async () => {
-      setLoading(true);
-      try {
-        const result = await handleRedirectResult();
-        if (result && result.user) {
-          // Check if the user is new (which they should be in this flow)
-          const isNewUser =
-            result.user.metadata.creationTime ===
-            result.user.metadata.lastSignInTime;
-
-          if (isNewUser) {
-            // Create user profile for new Google users
-            const userDetails = {
-              name: result.user.displayName,
-              email: result.user.email,
-              // Add other details you might want to save
-            };
-            await createUserProfile(userDetails, result);
-          }
-          onClose(); // Close modal on successful signup
-        }
-      } catch (error) {
-        console.error("Google sign-up redirect error:", error);
-        setErrors({
-          general: "Google sign-up failed. Please try again.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    handleAuthRedirect();
-  }, [handleRedirectResult, onClose, createUserProfile]);
+  const { signup, createUserProfile, signInWithGoogle } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -74,11 +34,21 @@ const Signup = ({ onSwitchToLogin, onClose }) => {
     setLoading(true);
     setErrors({});
     try {
-      await signInWithGoogle();
-      // The redirect will be handled by the useEffect hook
+      const result = await signInWithGoogle();
+      if (result && result.user) {
+        // With Google Sign-In, we assume a new user should be created if they don't exist.
+        // The createUserProfile function on the backend is idempotent, so it's safe to call.
+        const userDetails = {
+          name: result.user.displayName,
+          email: result.user.email,
+        };
+        await createUserProfile(userDetails, result);
+        onClose();
+      }
     } catch (error) {
       console.error("Google sign-up error:", error);
       setErrors({ general: "Google sign-up failed. Please try again." });
+    } finally {
       setLoading(false);
     }
   };
