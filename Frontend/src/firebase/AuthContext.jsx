@@ -6,7 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from "firebase/auth";
 import { auth } from "./config";
 
@@ -59,25 +60,30 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      provider.addScope('profile');
-      provider.addScope('email');
-      
-      const result = await signInWithPopup(auth, provider);
-      
-      // Get fresh token
-      const token = await result.user.getIdToken(true);
-      
-      return {
-        ...result,
-        token
-      };
+      provider.addScope("profile");
+      provider.addScope("email");
+      await signInWithRedirect(auth, provider);
     } catch (error) {
-      console.error('Google sign-in error details:', {
-        code: error.code,
-        message: error.message,
-        email: error.customData?.email,
-        credential: error.credential
-      });
+      console.error("Google sign-in error:", error);
+      throw error;
+    }
+  };
+
+  // Handle redirect result from Google Sign-In
+  const handleRedirectResult = async () => {
+    try {
+      const result = await getRedirectResult(auth);
+      if (result) {
+        // User signed in
+        const token = await result.user.getIdToken(true);
+        return {
+          ...result,
+          token,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Google sign-in redirect error:", error);
       throw error;
     }
   };
@@ -260,7 +266,8 @@ export function AuthProvider({ children }) {
     createUserProfile,
     loading,
     fetchUserDetails,
-    signInWithGoogle, // Included and in correct scope
+    signInWithGoogle,
+    handleRedirectResult,
   };
 
   return (
