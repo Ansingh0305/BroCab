@@ -49,6 +49,9 @@ func main() {
 		c.JSON(200, gin.H{"message": "This is a public endpoint"})
 	})
 
+	// Public email check endpoint (no auth required)
+	r.POST("/user/check-email", CheckEmailExists)
+
 	// Ping endpoint for testing connectivity with cleanup
 	r.GET("/ping", func(c *gin.Context) {
 		// Clean up expired rides

@@ -245,9 +245,25 @@ const SignUpPage = () => {
   const [touched, setTouched] = useState({});
   const [btnHover, setBtnHover] = useState(false);
 
-  // Helper function to check if email exists
+  // Helper function to check if email exists in backend
   const checkEmailExists = async (email) => {
     try {
+      // Check backend API instead of Firebase Auth
+      const response = await fetch(`https://brocab.onrender.com/user/check-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.exists || false;
+      }
+      
+      // If endpoint doesn't exist, fall back to a simpler check
+      // Try to create a temporary Firebase user to check if email exists
       const signInMethods = await fetchSignInMethodsForEmail(auth, email);
       return signInMethods.length > 0;
     } catch (error) {
@@ -355,15 +371,15 @@ const SignUpPage = () => {
       };
 
       if (isGoogleAuth) {
-        // Google auth flow - user already authenticated
-        await createUserProfile(userData);
+        // Google auth flow - need to authenticate with Google again and create profile
+        const result = await signInWithGoogle();
+        await createUserProfile(userData, result);
         navigate("/dashboard");
       } else {
         // Regular email/password signup
         const userCredential = await signup(formData.email, formData.password, formData.name);
         await createUserProfile(userData, userCredential);
-        // Remove Firestore user doc creation - using backend API only
-        // Only navigate after both signup and profile creation succeed
+        // Navigate to login page for email/password users
         navigate("/login");
       }
     } catch (error) {
@@ -417,12 +433,6 @@ const SignUpPage = () => {
       if (!isNewUser) {
         // Email already registered, clean up Firebase auth and show error (do NOT log in)
         try {
-          // await result.user.delete();
-        } catch (deleteError) {
-          // Ignore error, proceed to signOut
-        }
-        // Always sign out to clear session
-        try {
           await auth.signOut();
         } catch (signOutError) {
           console.error('Error signing out:', signOutError);
@@ -435,12 +445,20 @@ const SignUpPage = () => {
         return;
       }
 
-      // Email doesn't exist, prefill form
+      // New user: Sign them out immediately and prefill the form
+      // Don't keep them signed in until they complete their profile
+      try {
+        await auth.signOut();
+      } catch (signOutError) {
+        console.error('Error signing out:', signOutError);
+      }
+
+      // Prefill form with Google data but don't authenticate yet
       setFormData(prev => ({
         ...prev,
         name: result.user.displayName || result.user.email.split('@')[0],
         email: result.user.email,
-        password: '', // Don't store token
+        password: '', // Password will be handled during final signup
       }));
       setIsGoogleAuth(true);
       setTouched({
@@ -449,22 +467,28 @@ const SignUpPage = () => {
         phone: false,
         gender: false
       });
-      // Focus on phone input
+      
+      // Show success message and focus on phone input
+      setErrors({
+        general: "✅ Google account connected! Please complete your profile below to finish signing up."
+      });
+      
       setTimeout(() => {
         phoneRef.current?.focus();
-      }, 100);
+        // Clear the success message after a moment
+        setErrors({});
+      }, 2000);
+      
     } catch (error) {
+      // Clean up any authentication state
       try {
         if (auth.currentUser) {
-          await auth.currentUser.delete();
-        }
-      } catch (deleteError) {
-        try {
           await auth.signOut();
-        } catch (signOutError) {
-          console.error('Error signing out:', signOutError);
         }
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
       }
+      
       switch (error.code) {
         case 'auth/popup-closed-by-user':
           setErrors({ general: 'Sign-in was cancelled' });
