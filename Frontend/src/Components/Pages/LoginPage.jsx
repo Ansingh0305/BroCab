@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../firebase/AuthContext';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import Navbar from '../Navbar/Navbar';
 
 const styles = {
@@ -210,15 +212,11 @@ const LoginForm = () => {
   const navigate = useNavigate();
   const { login, signInWithGoogle, createUserProfile } = useAuth();
 
-  // Function to check if user exists in backend API
-  const checkUserExists = async (user) => {
+  // Function to check if user exists in Firestore
+  const checkUserExists = async (uid) => {
     try {
-      const token = await user.getIdToken();
-      const response = await fetch('https://brocab.onrender.com/user', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      return response.ok;
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      return userDoc.exists();
     } catch (error) {
       console.error('Error checking user existence:', error);
       return false;
@@ -233,8 +231,8 @@ const LoginForm = () => {
     try {
       const userCredential = await login(email, password);
       
-      // Check if user profile exists in backend
-      const userExists = await checkUserExists(userCredential.user);
+      // Check if user profile exists in Firestore
+      const userExists = await checkUserExists(userCredential.user.uid);
       
       if (!userExists) {
         // User authenticated with Firebase but no profile exists
@@ -285,26 +283,38 @@ const LoginForm = () => {
     try {
       const result = await signInWithGoogle();
       const user = result.user;
-      
-      // Check if user profile exists in backend
-      const userExists = await checkUserExists(user);
-      
+      // Check if user profile exists in Firestore
+      const userExists = await checkUserExists(user.uid);
       if (!userExists) {
-        // Check if the user is new
-        const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
-
-        if (isNewUser) {
-          // Create user profile for new Google users
-          const userDetails = {
-            name: user.displayName || '',
-            email: user.email || '',
-            phone: '',
-            gender: ''
-          };
-          await createUserProfile(userDetails, result);
-        }
+        // If not, create Firestore user doc with Google profile info
+        await setDoc(doc(db, 'users', user.uid), {
+          name: user.displayName || '',
+          email: user.email || '',
+          phone: '',
+          gender: '',
+          createdAt: new Date().toISOString()
+        });
       }
-      
+      // --- Backend user profile check and creation ---
+      // Try to fetch backend user profile
+      let backendProfileOk = false;
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch('https://brocab.onrender.com/user', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) backendProfileOk = true;
+      } catch (e) { backendProfileOk = false; }
+      if (!backendProfileOk) {
+        // Create backend user profile if missing
+        await createUserProfile({
+          name: user.displayName || '',
+          email: user.email || '',
+          phone: '',
+          gender: ''
+        });
+      }
       navigate('/dashboard');
     } catch (error) {
       console.error('Google sign-in error:', error);
@@ -315,7 +325,10 @@ const LoginForm = () => {
           setErrors({ general: 'Sign-in was cancelled' });
           break;
         case 'auth/popup-blocked':
-          setErrors({ general: 'Pop-up was blocked. Please allow pop-ups and try again.' });
+          setErrors({ general: 'Popup was blocked. Please allow popups and try again.' });
+          break;
+        case 'auth/account-exists-with-different-credential':
+          setErrors({ general: 'An account already exists with this email using a different sign-in method.' });
           break;
         default:
           setErrors({ general: 'Google sign-in failed. Please try again.' });

@@ -3,6 +3,8 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../firebase/AuthContext";
 import { getAuth, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { db } from '../../firebase/config';
+import { doc, setDoc } from 'firebase/firestore';
 
 import Navbar from '../Navbar/Navbar';
 
@@ -245,25 +247,9 @@ const SignUpPage = () => {
   const [touched, setTouched] = useState({});
   const [btnHover, setBtnHover] = useState(false);
 
-  // Helper function to check if email exists in backend
+  // Helper function to check if email exists
   const checkEmailExists = async (email) => {
     try {
-      // Check backend API instead of Firebase Auth
-      const response = await fetch(`https://brocab.onrender.com/user/check-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.exists || false;
-      }
-      
-      // If endpoint doesn't exist, fall back to a simpler check
-      // Try to create a temporary Firebase user to check if email exists
       const signInMethods = await fetchSignInMethodsForEmail(auth, email);
       return signInMethods.length > 0;
     } catch (error) {
@@ -319,28 +305,10 @@ const SignUpPage = () => {
     setTouched({ ...touched, [e.target.name]: true });
     const field = e.target.name;
     
-    // Basic field validation
+    // Basic field validation only - remove aggressive email checking
     const fieldErrors = validateForm();
     
-    // Check email existence when email field is blurred
-    if (field === 'email' && formData.email && !fieldErrors.email) {
-      try {
-        const emailExists = await checkEmailExists(formData.email);
-        if (emailExists) {
-          setErrors(prev => ({ 
-            ...prev, 
-            email: "This email is already registered. Please login or use a different email address.",
-            general: "An account already exists with this email. You can login to your account instead."
-          }));
-          return;
-        }
-      } catch (error) {
-        console.error('Email check error:', error);
-        // Don't show error to user here, let the signup process handle it
-      }
-    }
-    
-    // Set field-specific error
+    // Set field-specific error only for basic validation
     if (fieldErrors[field]) {
       setErrors(prev => ({ ...prev, [field]: fieldErrors[field] }));
     }
@@ -354,32 +322,39 @@ const SignUpPage = () => {
     setLoading(true);
     setErrors({});
 
-    // Basic validation
-    const fieldErrors = validateForm();
-    if (Object.keys(fieldErrors).length > 0) {
-      setErrors(fieldErrors);
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       setLoading(false);
       return;
     }
 
     try {
+      // Remove the email existence check - let Firebase handle it during signup
       const userData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        gender: formData.gender
+        gender: formData.gender || undefined
       };
 
       if (isGoogleAuth) {
-        // Google auth flow - need to authenticate with Google again and create profile
-        const result = await signInWithGoogle();
-        await createUserProfile(userData, result);
+        // For Google auth, update profile
+        await createUserProfile(userData);
         navigate("/dashboard");
       } else {
         // Regular email/password signup
         const userCredential = await signup(formData.email, formData.password, formData.name);
         await createUserProfile(userData, userCredential);
-        // Navigate to login page for email/password users
+        // --- Firestore user doc creation ---
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          gender: formData.gender || '',
+          createdAt: new Date().toISOString()
+        });
+        // Only navigate after both signup and profile creation succeed
         navigate("/login");
       }
     } catch (error) {
@@ -395,25 +370,31 @@ const SignUpPage = () => {
             setTimeout(() => navigate('/login'), 2000);
             break;
           case "auth/invalid-email":
-            setErrors({ email: "Invalid email format" });
+            setErrors({ 
+              email: "Invalid email address format",
+              general: "Please enter a valid email address."
+            });
             break;
           case "auth/weak-password":
-            setErrors({ password: "Password is too weak. Please use at least 6 characters." });
+            setErrors({ 
+              password: "Password is too weak. It should be at least 6 characters long.",
+              general: "Please choose a stronger password."
+            });
+            break;
+          case "auth/network-request-failed":
+            setErrors({ 
+              general: "Network error. Please check your internet connection and try again."
+            });
             break;
           default:
+            console.error('Unhandled signup error:', error);
             setErrors({ general: "Signup failed. Please try again." });
         }
       } else {
-        // Backend API errors
-        if (error.message && error.message.includes('email')) {
-          setErrors({ 
-            email: "This email is already registered",
-            general: "An account with this email already exists. Please login instead."
-          });
-          setTimeout(() => navigate('/login'), 2000);
-        } else {
-          setErrors({ general: error.message || "Signup failed. Please try again." });
-        }
+        // API or other errors
+        setErrors({ 
+          general: error.message || "Signup failed. Please try again."
+        });
       }
     } finally {
       setLoading(false);
@@ -433,6 +414,12 @@ const SignUpPage = () => {
       if (!isNewUser) {
         // Email already registered, clean up Firebase auth and show error (do NOT log in)
         try {
+          // await result.user.delete();
+        } catch (deleteError) {
+          // Ignore error, proceed to signOut
+        }
+        // Always sign out to clear session
+        try {
           await auth.signOut();
         } catch (signOutError) {
           console.error('Error signing out:', signOutError);
@@ -445,21 +432,14 @@ const SignUpPage = () => {
         return;
       }
 
-      // New user: Sign them out immediately and prefill the form
-      // Don't keep them signed in until they complete their profile
-      try {
-        await auth.signOut();
-      } catch (signOutError) {
-        console.error('Error signing out:', signOutError);
-      }
-
-      // Prefill form with Google data but don't authenticate yet
+      // Email doesn't exist, prefill form
       setFormData(prev => ({
         ...prev,
         name: result.user.displayName || result.user.email.split('@')[0],
         email: result.user.email,
-        password: '', // Password will be handled during final signup
+        password: '', // Don't store token
       }));
+
       setIsGoogleAuth(true);
       setTouched({
         name: true,
@@ -467,28 +447,22 @@ const SignUpPage = () => {
         phone: false,
         gender: false
       });
-      
-      // Show success message and focus on phone input
-      setErrors({
-        general: "✅ Google account connected! Please complete your profile below to finish signing up."
-      });
-      
+      // Focus on phone input
       setTimeout(() => {
         phoneRef.current?.focus();
-        // Clear the success message after a moment
-        setErrors({});
-      }, 2000);
-      
+      }, 100);
     } catch (error) {
-      // Clean up any authentication state
       try {
         if (auth.currentUser) {
-          await auth.signOut();
+          await auth.currentUser.delete();
         }
-      } catch (cleanupError) {
-        console.error('Error during cleanup:', cleanupError);
+      } catch (deleteError) {
+        try {
+          await auth.signOut();
+        } catch (signOutError) {
+          console.error('Error signing out:', signOutError);
+        }
       }
-      
       switch (error.code) {
         case 'auth/popup-closed-by-user':
           setErrors({ general: 'Sign-in was cancelled' });

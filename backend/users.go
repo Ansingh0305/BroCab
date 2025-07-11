@@ -214,28 +214,6 @@ func GetRideLeader(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// POST /user/check-email - Check if email exists in backend
-func CheckEmailExists(c *gin.Context) {
-	var req struct {
-		Email string `json:"email" binding:"required,email"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
-		return
-	}
-
-	var user User
-	result := DB.Where("email = ?", req.Email).First(&user)
-
-	exists := result.Error == nil
-
-	c.JSON(http.StatusOK, gin.H{
-		"exists": exists,
-		"email":  req.Email,
-	})
-}
-
 // Helper function to get user by database ID and return Firebase UID
 func getUserByID(userID uint) (*User, error) {
 	var user User
